@@ -18,12 +18,22 @@
   ],
   "win": {
     "target": ["nsis", "portable"],
-    "artifactName": "${productName}-Setup-${version}.${ext}"
+    "artifactName": "${productName}-Windows-${version}.${ext}"
   },
   "nsis": {
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
     "perMachine": false,
     "deleteAppDataOnUninstall": false
+  },
+  "mac": {
+    "target": ["dmg", "zip"],
+    "category": "public.app-category.utilities",
+    "artifactName": "${productName}-macOS-${version}.${ext}"
+  },
+  "linux": {
+    "target": ["AppImage", "deb"],
+    "category": "Utility",
+    "artifactName": "${productName}-Linux-${version}.${ext}"
   }
 }

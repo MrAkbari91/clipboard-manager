@@ -7,6 +7,8 @@ export interface PinnedPageProps {
   items: ClipboardItem[];
   projects: Project[];
   loading: boolean;
+  selectedItemId?: string | null;
+  onSelectCard: (item: ClipboardItem) => void;
   onCopy: (id: string) => Promise<boolean>;
   onPin: (id: string, isPinned: boolean) => Promise<boolean>;
   onDelete: (id: string) => Promise<boolean>;
@@ -19,6 +21,8 @@ export const PinnedPage: React.FC<PinnedPageProps> = ({
   items,
   projects,
   loading,
+  selectedItemId,
+  onSelectCard,
   onCopy,
   onPin,
   onDelete,
@@ -39,20 +43,20 @@ export const PinnedPage: React.FC<PinnedPageProps> = ({
   if (pinnedItems.length === 0) {
     return (
       <EmptyState
-        icon="⭐"
-        title="No pinned items yet"
-        description="Pin important snippets, commands, credentials, or links to keep them permanently at your fingertips."
-        actionLabel="Explore All Items"
+        icon="★"
+        title="No pinned snippets yet"
+        description="Pin frequently used code, credentials, snippets, or links to access them with a single click."
+        actionLabel="Browse All Items"
         onAction={onNavigateAll}
       />
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
-        <span className="text-body" style={{ fontWeight: 600 }}>
-          {pinnedItems.length} {pinnedItems.length === 1 ? "pinned item" : "pinned items"}
+        <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text-secondary)" }}>
+          ★ {pinnedItems.length} {pinnedItems.length === 1 ? "Favorite Snippet" : "Favorite Snippets"}
         </span>
       </div>
 
@@ -61,6 +65,8 @@ export const PinnedPage: React.FC<PinnedPageProps> = ({
           key={item.id}
           item={item}
           projects={projects}
+          isSelected={selectedItemId === item.id}
+          onSelect={onSelectCard}
           onCopy={onCopy}
           onPin={onPin}
           onDelete={onDelete}

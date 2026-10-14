@@ -1,0 +1,94 @@
+name: Cross-Platform Release Build
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install System Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libarchive-tools libappindicator3-1
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate
+
+      - name: Run Typecheck
+        run: npm run typecheck
+
+      - name: Run Lint
+        run: npm run lint
+
+      - name: Run Tests
+        run: npm test
+
+      - name: Build Application
+        run: npm run build
+
+      - name: Build Desktop Binary (Windows)
+        if: runner.os == 'Windows'
+        run: npx electron-builder --win
+
+      - name: Build Desktop Binary (macOS)
+        if: runner.os == 'macOS'
+        run: npx electron-builder --mac
+
+      - name: Build Desktop Binary (Linux)
+        if: runner.os == 'Linux'
+        run: npx electron-builder --linux
+
+      - name: Upload Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-artifacts
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: warn
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+            release/*.deb
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

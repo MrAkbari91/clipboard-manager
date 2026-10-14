@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "start": "electron .",
     "package": "npm run build && electron-builder"
   },
   "dependencies": {

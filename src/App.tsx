@@ -4,6 +4,7 @@ import { useClipboardBrain } from "./hooks/useClipboardBrain";
 import { useClipboardItems } from "./hooks/useClipboardItems";
 import { useProjects } from "./hooks/useProjects";
 import { useCaptureStatus } from "./hooks/useCaptureStatus";
+import { useTheme } from "./hooks/useTheme";
 import { Sidebar, ActiveNavPage } from "./components/layout/Sidebar";
 import { TopBar } from "./components/layout/TopBar";
 import { AllItemsPage } from "./pages/AllItemsPage";
@@ -11,14 +12,18 @@ import { PinnedPage } from "./pages/PinnedPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { PreviewModal } from "./components/clipboard/PreviewModal";
+import { SidePreviewDrawer } from "./components/clipboard/SidePreviewDrawer";
 import { Dialog } from "./components/ui/Dialog";
 import { Button } from "./components/ui/Button";
 import { AlertToast } from "./components/ui/Alert";
 
 export default function App() {
   const { isNativeElectron } = useClipboardBrain();
+  const { theme, toggleTheme, setTheme } = useTheme();
+
   const [activePage, setActivePage] = useState<ActiveNavPage>("all");
-  const [previewItem, setPreviewItem] = useState<ClipboardItem | null>(null);
+  const [selectedCard, setSelectedCard] = useState<ClipboardItem | null>(null);
+  const [modalItem, setModalItem] = useState<ClipboardItem | null>(null);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState<boolean>(false);
   const [isClearing, setIsClearing] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
@@ -85,20 +90,27 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Update previewItem when its data changes in items list
+  // Sync selected and modal items if their attributes change in items list
   useEffect(() => {
-    if (previewItem) {
-      const updated = items.find((i) => i.id === previewItem.id);
-      if (updated) {
-        setPreviewItem(updated);
-      }
+    if (selectedCard) {
+      const updated = items.find((i) => i.id === selectedCard.id);
+      if (updated) setSelectedCard(updated);
+      else setSelectedCard(null);
     }
-  }, [items, previewItem]);
+  }, [items, selectedCard]);
+
+  useEffect(() => {
+    if (modalItem) {
+      const updated = items.find((i) => i.id === modalItem.id);
+      if (updated) setModalItem(updated);
+      else setModalItem(null);
+    }
+  }, [items, modalItem]);
 
   const handleCopy = async (id: string): Promise<boolean> => {
     const ok = await copyItem(id);
     if (ok) {
-      setToast({ message: "Copied snippet to system clipboard!", type: "success" });
+      setToast({ message: "Copied to clipboard!", type: "success" });
     }
     return ok;
   };
@@ -107,7 +119,7 @@ export default function App() {
     const ok = await pinItem(id, isPinned);
     if (ok) {
       setToast({
-        message: isPinned ? "Item pinned to favorites" : "Item unpinned",
+        message: isPinned ? "Pinned to favorites" : "Unpinned",
         type: "info",
       });
     }
@@ -117,10 +129,9 @@ export default function App() {
   const handleDelete = async (id: string): Promise<boolean> => {
     const ok = await deleteItem(id);
     if (ok) {
-      setToast({ message: "Item deleted from history", type: "info" });
-      if (previewItem?.id === id) {
-        setPreviewItem(null);
-      }
+      setToast({ message: "Item removed from history", type: "info" });
+      if (selectedCard?.id === id) setSelectedCard(null);
+      if (modalItem?.id === id) setModalItem(null);
     }
     return ok;
   };
@@ -142,6 +153,8 @@ export default function App() {
     const count = await clearHistory();
     setIsClearing(false);
     setIsClearDialogOpen(false);
+    setSelectedCard(null);
+    setModalItem(null);
     setToast({
       message: `Cleared ${count} items from history`,
       type: "info",
@@ -155,7 +168,10 @@ export default function App() {
       {/* Sidebar Navigation */}
       <Sidebar
         activePage={activePage}
-        onNavigate={(page) => setActivePage(page)}
+        onNavigate={(page) => {
+          setActivePage(page);
+          setSelectedCard(null);
+        }}
         allCount={items.length}
         pinnedCount={pinnedCount}
         projectsCount={projects.length}
@@ -173,72 +189,97 @@ export default function App() {
           onToggleCapture={toggleCapture}
           onRequestClearHistory={() => setIsClearDialogOpen(true)}
           hasItems={items.length > 0}
+          theme={theme}
+          onToggleTheme={toggleTheme}
         />
 
-        <main className="page-body">
-          {activePage === "all" && (
-            <AllItemsPage
-              items={items}
+        <div className="content-split-layout">
+          <main className="page-body">
+            {activePage === "all" && (
+              <AllItemsPage
+                items={items}
+                projects={projects}
+                loading={itemsLoading}
+                query={query}
+                selectedItemId={selectedCard?.id}
+                onSelectCard={(item) => setSelectedCard(item)}
+                onUpdateContentType={updateContentType}
+                onUpdatePinnedOnly={updatePinnedOnly}
+                onUpdateSort={updateSort}
+                onResetFilters={resetFilters}
+                onCopy={handleCopy}
+                onPin={handlePin}
+                onDelete={handleDelete}
+                onAssignProject={handleAssignProject}
+                onOpenPreview={(item) => setModalItem(item)}
+              />
+            )}
+
+            {activePage === "pinned" && (
+              <PinnedPage
+                items={items}
+                projects={projects}
+                loading={itemsLoading}
+                selectedItemId={selectedCard?.id}
+                onSelectCard={(item) => setSelectedCard(item)}
+                onCopy={handleCopy}
+                onPin={handlePin}
+                onDelete={handleDelete}
+                onAssignProject={handleAssignProject}
+                onOpenPreview={(item) => setModalItem(item)}
+                onNavigateAll={() => setActivePage("all")}
+              />
+            )}
+
+            {activePage === "projects" && (
+              <ProjectsPage
+                projects={projects}
+                items={items}
+                loading={projectsLoading}
+                selectedItemId={selectedCard?.id}
+                onSelectCard={(item) => setSelectedCard(item)}
+                onCreateProject={createProject}
+                onCopy={handleCopy}
+                onPin={handlePin}
+                onDelete={handleDelete}
+                onAssignProject={handleAssignProject}
+                onOpenPreview={(item) => setModalItem(item)}
+              />
+            )}
+
+            {activePage === "settings" && (
+              <SettingsPage
+                isPaused={isPaused}
+                onToggleCapture={toggleCapture}
+                onClearHistory={clearHistory}
+                totalItemsCount={items.length}
+                isNativeElectron={isNativeElectron}
+                theme={theme}
+                onSetTheme={setTheme}
+              />
+            )}
+          </main>
+
+          {/* Desktop Side Inspector Drawer (opens when a card is selected) */}
+          {selectedCard && (
+            <SidePreviewDrawer
+              item={selectedCard}
               projects={projects}
-              loading={itemsLoading}
-              query={query}
-              onUpdateContentType={updateContentType}
-              onUpdatePinnedOnly={updatePinnedOnly}
-              onUpdateSort={updateSort}
-              onResetFilters={resetFilters}
+              onClose={() => setSelectedCard(null)}
               onCopy={handleCopy}
               onPin={handlePin}
               onDelete={handleDelete}
               onAssignProject={handleAssignProject}
-              onOpenPreview={(item) => setPreviewItem(item)}
             />
           )}
-
-          {activePage === "pinned" && (
-            <PinnedPage
-              items={items}
-              projects={projects}
-              loading={itemsLoading}
-              onCopy={handleCopy}
-              onPin={handlePin}
-              onDelete={handleDelete}
-              onAssignProject={handleAssignProject}
-              onOpenPreview={(item) => setPreviewItem(item)}
-              onNavigateAll={() => setActivePage("all")}
-            />
-          )}
-
-          {activePage === "projects" && (
-            <ProjectsPage
-              projects={projects}
-              items={items}
-              loading={projectsLoading}
-              onCreateProject={createProject}
-              onCopy={handleCopy}
-              onPin={handlePin}
-              onDelete={handleDelete}
-              onAssignProject={handleAssignProject}
-              onOpenPreview={(item) => setPreviewItem(item)}
-            />
-          )}
-
-          {activePage === "settings" && (
-            <SettingsPage
-              isPaused={isPaused}
-              onToggleCapture={toggleCapture}
-              onClearHistory={clearHistory}
-              totalItemsCount={items.length}
-              isNativeElectron={isNativeElectron}
-            />
-          )}
-        </main>
+        </div>
       </div>
 
       {/* Full Preview Modal */}
       <PreviewModal
-        item={previewItem}
+        item={modalItem}
         projects={projects}
-        onClose={() => setPreviewItem(null)}
+        onClose={() => setModalItem(null)}
         onCopy={handleCopy}
         onPin={handlePin}
         onDelete={handleDelete}

@@ -24,22 +24,22 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   isFiltered,
 }) => {
   const types: Array<{ key: ClipboardContentType | "all"; label: string; icon: string }> = [
-    { key: "all", label: "All", icon: "✨" },
-    { key: "text", label: "Text", icon: "📄" },
-    { key: "code", label: "Code", icon: "💻" },
-    { key: "url", label: "URL", icon: "🔗" },
-    { key: "color", label: "Color", icon: "🎨" },
+    { key: "all", label: "All Types", icon: "✨" },
+    { key: "text", label: "Text", icon: "¶" },
+    { key: "code", label: "Code", icon: "</>" },
+    { key: "url", label: "Links", icon: "↗" },
+    { key: "color", label: "Colors", icon: "✦" },
   ];
 
   return (
     <div className="filter-bar">
-      {/* Type Filter Buttons */}
-      <div className="filter-group">
+      {/* Type Filter Pills */}
+      <div className="filter-pills">
         {types.map((t) => (
           <button
             key={t.key}
             type="button"
-            className={`filter-btn ${selectedType === t.key ? "active" : ""}`}
+            className={`filter-pill ${selectedType === t.key ? "active" : ""}`}
             onClick={() => onSelectType(t.key)}
           >
             <span aria-hidden="true" style={{ marginRight: "4px" }}>
@@ -48,44 +48,36 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             {t.label}
           </button>
         ))}
+
+        <button
+          type="button"
+          className={`filter-pill ${pinnedOnly ? "active" : ""}`}
+          onClick={() => onTogglePinnedOnly(!pinnedOnly)}
+          style={{
+            color: pinnedOnly ? "#ffffff" : "var(--accent-amber)",
+            backgroundColor: pinnedOnly ? "var(--accent-amber)" : "transparent",
+            borderColor: pinnedOnly ? "transparent" : "var(--border-subtle)",
+          }}
+        >
+          <span>★</span> Pinned
+        </button>
       </div>
 
-      {/* Pinned-only Filter */}
-      <button
-        type="button"
-        className={`filter-btn ${pinnedOnly ? "active" : ""}`}
-        style={{
-          border: "1px solid var(--border-subtle)",
-          padding: "5px 12px",
-          borderRadius: "var(--radius-md)",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "6px",
-        }}
-        onClick={() => onTogglePinnedOnly(!pinnedOnly)}
-      >
-        <span>⭐</span>
-        <span>Pinned only</span>
-      </button>
-
-      {/* Sort selection */}
-      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
-        <span className="text-small" style={{ color: "var(--text-muted)" }}>
-          Sort:
-        </span>
+      {/* Sort selection & Reset */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         <select
           className="select-field"
           value={sort}
           onChange={(e) => onSortChange(e.target.value as "newest" | "oldest")}
-          style={{ padding: "4px 8px", fontSize: "0.8125rem" }}
+          aria-label="Sort order"
         >
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
+          <option value="newest">↓ Newest First</option>
+          <option value="oldest">↑ Oldest First</option>
         </select>
 
         {isFiltered && (
           <Button variant="ghost" size="sm" onClick={onResetFilters}>
-            Reset filters
+            Reset Filters
           </Button>
         )}
       </div>

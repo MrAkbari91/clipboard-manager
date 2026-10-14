@@ -10,6 +10,8 @@ export interface ProjectsPageProps {
   projects: Project[];
   items: ClipboardItem[];
   loading: boolean;
+  selectedItemId?: string | null;
+  onSelectCard: (item: ClipboardItem) => void;
   onCreateProject: (name: string, description?: string) => Promise<Project | null>;
   onCopy: (id: string) => Promise<boolean>;
   onPin: (id: string, isPinned: boolean) => Promise<boolean>;
@@ -22,6 +24,8 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
   projects,
   items,
   loading,
+  selectedItemId,
+  onSelectCard,
   onCreateProject,
   onCopy,
   onPin,
@@ -37,10 +41,8 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
   const [newProjectDesc, setNewProjectDesc] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // If selectedProjectId is null but we have projects, select first
   const currentProjectId = selectedProjectId || (projects.length > 0 ? projects[0].id : null);
   const currentProject = projects.find((p) => p.id === currentProjectId);
-
   const projectItems = items.filter((i) => i.projectId === currentProjectId);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -60,12 +62,14 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       {/* Top Header with Create Project Button */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <h2 className="title-lg">Projects & Collections</h2>
-          <p className="text-body">Group related snippets, documentation links, and assets together.</p>
+          <h2 style={{ fontSize: "1.125rem", fontWeight: 700 }}>Projects & Collections</h2>
+          <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "2px" }}>
+            Group related snippets, credentials, code blocks, and resources.
+          </p>
         </div>
         <Button variant="primary" onClick={() => setIsCreateOpen(true)} icon="➕">
           New Project
@@ -80,8 +84,8 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
         <EmptyState
           icon="📁"
           title="No projects created yet"
-          description="Create your first project to organize your clipboard history into topics like React App, DevOps, or Design System."
-          actionLabel="Create First Project"
+          description="Create workspaces for specific clients, repositories, or topics."
+          actionLabel="Create Project"
           onAction={() => setIsCreateOpen(true)}
         />
       ) : (
@@ -92,8 +96,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
               display: "flex",
               gap: "8px",
               overflowX: "auto",
-              paddingBottom: "8px",
-              borderBottom: "1px solid var(--border-subtle)",
+              paddingBottom: "4px",
             }}
           >
             {projects.map((proj) => {
@@ -105,13 +108,13 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                   type="button"
                   onClick={() => setSelectedProjectId(proj.id)}
                   style={{
-                    padding: "8px 14px",
+                    padding: "7px 14px",
                     borderRadius: "var(--radius-md)",
-                    backgroundColor: isActive ? "var(--color-primary)" : "var(--bg-card)",
+                    backgroundColor: isActive ? "var(--accent-indigo)" : "var(--bg-surface)",
                     color: isActive ? "#ffffff" : "var(--text-secondary)",
                     border: `1px solid ${isActive ? "transparent" : "var(--border-subtle)"}`,
                     cursor: "pointer",
-                    fontSize: "0.875rem",
+                    fontSize: "0.8125rem",
                     fontWeight: 500,
                     display: "inline-flex",
                     alignItems: "center",
@@ -124,8 +127,8 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                   <span>{proj.name}</span>
                   <span
                     style={{
-                      fontSize: "0.75rem",
-                      backgroundColor: isActive ? "rgba(255,255,255,0.2)" : "var(--bg-input)",
+                      fontSize: "0.6875rem",
+                      backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "var(--bg-surface-elevated)",
                       padding: "1px 6px",
                       borderRadius: "var(--radius-full)",
                     }}
@@ -140,16 +143,23 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
           {/* Active Project Details */}
           {currentProject && (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              <div style={{ padding: "12px 16px", backgroundColor: "var(--bg-card)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)" }}>
-                <h3 className="title-md" style={{ color: "var(--text-primary)", marginBottom: "4px" }}>
+              <div
+                style={{
+                  padding: "12px 16px",
+                  backgroundColor: "var(--bg-surface)",
+                  borderRadius: "var(--radius-lg)",
+                  border: "1px solid var(--border-subtle)",
+                }}
+              >
+                <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-primary)" }}>
                   📁 {currentProject.name}
                 </h3>
                 {currentProject.description && (
-                  <p className="text-body" style={{ color: "var(--text-secondary)", marginBottom: "6px" }}>
+                  <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", marginTop: "4px" }}>
                     {currentProject.description}
                   </p>
                 )}
-                <span className="text-small" style={{ color: "var(--text-muted)" }}>
+                <span style={{ fontSize: "0.6875rem", color: "var(--text-muted)", display: "block", marginTop: "6px" }}>
                   Created on {new Date(currentProject.createdAt).toLocaleDateString()} • {projectItems.length} items
                 </span>
               </div>
@@ -158,16 +168,18 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
               {projectItems.length === 0 ? (
                 <EmptyState
                   icon="🏷️"
-                  title="No items assigned to this project"
-                  description="Assign any clipboard card to this project using the project dropdown on the card."
+                  title="No items in this project yet"
+                  description="Use the project dropdown on any clipboard card to assign items to this folder."
                 />
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   {projectItems.map((item) => (
                     <ClipboardCard
                       key={item.id}
                       item={item}
                       projects={projects}
+                      isSelected={selectedItemId === item.id}
+                      onSelect={onSelectCard}
                       onCopy={onCopy}
                       onPin={onPin}
                       onDelete={onDelete}
@@ -210,7 +222,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
             </label>
             <Input
               id="project-name-input"
-              placeholder="e.g. Next.js Migration, Code Snippets"
+              placeholder="e.g. React Native, AWS Credentials, API Snippets"
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
               autoFocus
@@ -224,7 +236,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
             </label>
             <Input
               id="project-desc-input"
-              placeholder="Brief description of what this project contains"
+              placeholder="What belongs in this project?"
               value={newProjectDesc}
               onChange={(e) => setNewProjectDesc(e.target.value)}
             />

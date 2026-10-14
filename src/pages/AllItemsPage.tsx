@@ -9,6 +9,8 @@ export interface AllItemsPageProps {
   projects: Project[];
   loading: boolean;
   query: ClipboardQuery;
+  selectedItemId?: string | null;
+  onSelectCard: (item: ClipboardItem) => void;
   onUpdateContentType: (type: ClipboardQuery["contentType"]) => void;
   onUpdatePinnedOnly: (pinned: boolean) => void;
   onUpdateSort: (sort: "newest" | "oldest") => void;
@@ -25,6 +27,8 @@ export const AllItemsPage: React.FC<AllItemsPageProps> = ({
   projects,
   loading,
   query,
+  selectedItemId,
+  onSelectCard,
   onUpdateContentType,
   onUpdatePinnedOnly,
   onUpdateSort,
@@ -57,34 +61,33 @@ export const AllItemsPage: React.FC<AllItemsPageProps> = ({
 
       {loading ? (
         <div style={{ textAlign: "center", padding: "60px", color: "var(--text-muted)" }}>
-          <div style={{ fontSize: "2rem", marginBottom: "12px", animation: "spin 1s infinite linear" }}>
-            ⏳
-          </div>
-          <p className="text-body">Loading clipboard items...</p>
+          <p className="text-body">Loading clipboard history...</p>
         </div>
       ) : items.length === 0 ? (
         isFiltered ? (
           <EmptyState
             icon="🔍"
             title="No matching clipboard items"
-            description="No items match your active filters or search keyword. Try clearing filters or searching for something else."
-            actionLabel="Clear all filters"
+            description="No items match your active search keyword or filter settings. Try clearing your filters."
+            actionLabel="Reset all filters"
             onAction={onResetFilters}
           />
         ) : (
           <EmptyState
-            icon="📋"
-            title="Clipboard is empty"
-            description="Copy any text, link, code snippet, or color anywhere on your computer. Clipboard Brain will automatically capture and catalog it here."
+            icon="🧠"
+            title="Clipboard Brain is waiting for copies"
+            description="Copy any text, URL, code, or hex color anywhere on your OS. It will automatically appear here with instant search and organization."
           />
         )
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {items.map((item) => (
             <ClipboardCard
               key={item.id}
               item={item}
               projects={projects}
+              isSelected={selectedItemId === item.id}
+              onSelect={onSelectCard}
               onCopy={onCopy}
               onPin={onPin}
               onDelete={onDelete}
