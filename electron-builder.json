@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.clipboardbrain.app",
+  "productName": "Clipboard Brain",
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "dist/**/*",
+    "dist-electron/**/*",
+    "node_modules/**/*",
+    "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+    "!node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+    "!node_modules/*.d.ts",
+    "!node_modules/.bin",
+    "prisma/schema.prisma",
+    "prisma/migrations/**/*"
+  ],
+  "win": {
+    "target": ["nsis", "portable"],
+    "artifactName": "${productName}-Setup-${version}.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "perMachine": false,
+    "deleteAppDataOnUninstall": false
+  }
+}

@@ -1,0 +1,49 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model ClipboardItem {
+  id          String             @id @default(uuid())
+  content     String
+  contentType String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  isPinned    Boolean            @default(false)
+  title       String?
+  projectId   String?
+  project     Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  tags        ClipboardItemTag[]
+
+  @@index([createdAt])
+  @@index([contentType])
+  @@index([isPinned])
+  @@index([projectId])
+}
+
+model Project {
+  id          String          @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime        @default(now())
+  items       ClipboardItem[]
+}
+
+model Tag {
+  id    String             @id @default(uuid())
+  name  String             @unique
+  items ClipboardItemTag[]
+}
+
+model ClipboardItemTag {
+  itemId String
+  tagId  String
+  item   ClipboardItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tag    Tag           @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, tagId])
+}

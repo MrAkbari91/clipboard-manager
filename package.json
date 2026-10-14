@@ -1,0 +1,38 @@
+{
+  "name": "clipboard-brain",
+  "version": "1.0.0",
+  "description": "Smart desktop clipboard brain and history manager",
+  "main": "dist-electron/electron/main.js",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build && tsc -p tsconfig.electron.json",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit",
+    "lint": "eslint \"src/**/*.{ts,tsx}\" \"electron/**/*.{ts,tsx}\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "package": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@typescript-eslint/eslint-plugin": "^8.16.0",
+    "@typescript-eslint/parser": "^8.16.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "eslint": "^8.57.1",
+    "prisma": "^5.22.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.1",
+    "vitest": "^2.1.6"
+  }
+}
