@@ -2,7 +2,7 @@ import React from "react";
 import { Button } from "./Button";
 
 export interface EmptyStateProps {
-  icon?: string;
+  icon?: React.ReactNode;
   title: string;
   description: string;
   actionLabel?: string;

@@ -1,11 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ClipboardItem, Project } from "../../shared/clipboard-contract";
 import { Button } from "../ui/Button";
+import { Icon } from "../ui/Icon";
 
 export interface ClipboardCardProps {
-  item: ClipboardItem;
-  projects: Project[];
-  isSelected?: boolean;
+  item: ClipboardItem; projects: Project[]; isSelected?: boolean;
   onSelect?: (item: ClipboardItem) => void;
   onCopy: (id: string) => Promise<boolean>;
   onPin: (id: string, isPinned: boolean) => Promise<boolean>;
@@ -13,267 +12,50 @@ export interface ClipboardCardProps {
   onAssignProject: (itemId: string, projectId: string | null) => Promise<boolean>;
   onOpenPreview: (item: ClipboardItem) => void;
 }
-
-export const ClipboardCard: React.FC<ClipboardCardProps> = ({
-  item,
-  projects,
-  isSelected = false,
-  onSelect,
-  onCopy,
-  onPin,
-  onDelete,
-  onAssignProject,
-  onOpenPreview,
-}) => {
-  const [copied, setCopied] = useState<boolean>(false);
-  const [isDeleting, setIsDeleting] = useState<boolean>(false);
-
-  const assignedProject = projects.find((p) => p.id === item.projectId);
-
-  const handleCopy = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const ok = await onCopy(item.id);
-    if (ok) {
+const typeLabels = { text: "Text", code: "Code snippet", url: "Link", color: "Color" };
+function timeAgo(value: string) {
+  const date = new Date(value);
+  const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`;
+  return date.toLocaleDateString([], { month: "short", day: "numeric" });
+}
+export const ClipboardCard: React.FC<ClipboardCardProps> = ({ item, projects, isSelected = false, onSelect, onCopy, onPin, onDelete, onAssignProject, onOpenPreview }) => {
+  const [copied, setCopied] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const handleCopy = async () => {
+    if (await onCopy(item.id)) {
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => setCopied(false), 2000);
     }
   };
-
-  const handlePin = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    await onPin(item.id, !item.isPinned);
-  };
-
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDelete = async () => {
     setIsDeleting(true);
-    await onDelete(item.id);
+    try { await onDelete(item.id); } finally { setIsDeleting(false); }
   };
-
-  const formatTimestamp = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      const now = new Date();
-      const diffMs = now.getTime() - d.getTime();
-      const diffMin = Math.floor(diffMs / (1000 * 60));
-      const diffHour = Math.floor(diffMin / 60);
-
-      if (diffMin < 1) return "Just now";
-      if (diffMin < 60) return `${diffMin}m ago`;
-      if (diffHour < 24) return `${diffHour}h ago`;
-      return d.toLocaleDateString([], { month: "short", day: "numeric" });
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const getTypeIcon = () => {
-    switch (item.contentType) {
-      case "code":
-        return "</>";
-      case "url":
-        return "↗";
-      case "color":
-        return "✦";
-      default:
-        return "¶";
-    }
-  };
-
-  const lines = item.content.split("\n");
-  const lineCount = lines.length;
-  const charCount = item.content.length;
-
-  return (
-    <article
-      className={`clipboard-card ${item.isPinned ? "pinned" : ""} ${isSelected ? "active-selected" : ""}`}
-      onClick={() => {
-        if (onSelect) onSelect(item);
-      }}
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onOpenPreview(item);
-        }
-      }}
-      aria-label={`Clipboard item: ${item.title || item.contentType}`}
-    >
-      {/* Top Header Row */}
-      <div className="card-top-row">
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div className={`card-type-icon-box ${item.contentType}`}>
-            {getTypeIcon()}
-          </div>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span
-                style={{
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  color: "var(--text-muted)",
-                }}
-              >
-                {item.contentType}
-              </span>
-              {item.isPinned && (
-                <span
-                  style={{
-                    fontSize: "0.6875rem",
-                    fontWeight: 600,
-                    padding: "1px 6px",
-                    borderRadius: "var(--radius-full)",
-                    backgroundColor: "var(--accent-amber-subtle)",
-                    color: "var(--accent-amber)",
-                  }}
-                >
-                  ★ Pinned
-                </span>
-              )}
-            </div>
-            {item.title && (
-              <h4 style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text-primary)", marginTop: "1px" }}>
-                {item.title}
-              </h4>
-            )}
-          </div>
-        </div>
-
-        {/* Floating Quick Action Toolbar */}
-        <div className="card-quick-actions" onClick={(e) => e.stopPropagation()}>
-          <Button
-            variant={copied ? "primary" : "secondary"}
-            size="sm"
-            onClick={handleCopy}
-            title="Copy to clipboard (Instant)"
-            aria-label="Copy to system clipboard"
-          >
-            {copied ? "✓ Copied" : "Copy"}
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handlePin}
-            title={item.isPinned ? "Unpin item" : "Pin item to favorites"}
-            style={{ color: item.isPinned ? "var(--accent-amber)" : "var(--text-muted)" }}
-          >
-            {item.isPinned ? "★" : "☆"}
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onOpenPreview(item)}
-            title="Open detailed preview"
-          >
-            👁️
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={isDeleting}
-            onClick={handleDelete}
-            title="Delete from history"
-            style={{ color: "var(--accent-rose)" }}
-          >
-            ✕
-          </Button>
-        </div>
-      </div>
-
-      {/* Content Visualization Body */}
-      {item.contentType === "code" ? (
-        <div className="code-container-preview">
-          <div className="code-window-header">
-            <span className="code-window-dot red" />
-            <span className="code-window-dot yellow" />
-            <span className="code-window-dot green" />
-            <span style={{ fontSize: "0.6875rem", marginLeft: "auto", color: "var(--text-muted)" }}>
-              {lineCount} {lineCount === 1 ? "line" : "lines"}
-            </span>
-          </div>
-          <div
-            style={{
-              maxHeight: "100px",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {item.content}
-          </div>
-        </div>
-      ) : item.contentType === "color" ? (
-        <div className="color-card-preview">
-          <div
-            className="large-color-swatch"
-            style={{ backgroundColor: item.content }}
-          />
-          <div>
-            <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "1rem", color: "var(--text-primary)" }}>
-              {item.content}
-            </div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-              Color snippet • Click copy to capture HEX
-            </div>
-          </div>
-        </div>
-      ) : item.contentType === "url" ? (
-        <div className="url-card-preview" onClick={(e) => e.stopPropagation()}>
-          <span style={{ fontSize: "1.1rem" }}>🔗</span>
-          <a
-            href={item.content}
-            target="_blank"
-            rel="noreferrer"
-            style={{ color: "inherit", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-          >
-            {item.content}
-          </a>
-        </div>
-      ) : (
-        <p className="card-body-preview">{item.content}</p>
-      )}
-
-      {/* Bottom Metadata & Project Assign Row */}
-      <div className="card-bottom-row" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span>{formatTimestamp(item.createdAt)}</span>
-          <span>•</span>
-          <span>{charCount} chars</span>
-        </div>
-
-        {/* Project Selector Chip */}
-        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-          <select
-            className="select-field"
-            value={item.projectId || ""}
-            onChange={(e) => {
-              const val = e.target.value ? e.target.value : null;
-              onAssignProject(item.id, val);
-            }}
-            style={{
-              padding: "2px 8px",
-              fontSize: "0.6875rem",
-              borderRadius: "var(--radius-full)",
-              border: "1px solid var(--border-subtle)",
-              backgroundColor: assignedProject ? "var(--accent-indigo-subtle)" : "var(--bg-surface-elevated)",
-              color: assignedProject ? "var(--accent-indigo)" : "var(--text-muted)",
-              fontWeight: assignedProject ? 600 : 400,
-            }}
-          >
-            <option value="">📁 No Project</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                📁 {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-    </article>
-  );
+  let hostname = item.content;
+  if (item.contentType === "url") {
+    try { hostname = new URL(item.content).hostname; } catch { /* Show the original clip for invalid URLs. */ }
+  }
+  return <article className={`clipboard-card type-${item.contentType} ${item.isPinned ? "pinned" : ""} ${isSelected ? "active-selected" : ""}`}
+    onClick={() => onSelect?.(item)} tabIndex={0}
+    onKeyDown={e => {
+      if (e.target !== e.currentTarget) return;
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenPreview(item); }
+    }} aria-label={`Clipboard item: ${item.title || typeLabels[item.contentType]}`}>
+    <div className="card-top-row"><span className={`card-type-label ${item.contentType}`}><Icon name={item.contentType} size={16} />{typeLabels[item.contentType]}</span><button className={`card-pin ${item.isPinned ? "is-pinned" : ""}`} title={item.isPinned ? "Unpin item" : "Pin item"} aria-label={item.isPinned ? "Unpin item" : "Pin item"} aria-pressed={item.isPinned} onClick={e => { e.stopPropagation(); void onPin(item.id, !item.isPinned); }}><Icon name="pin" size={16} /></button></div>
+    <h3 className="card-title">{item.title || (item.contentType === "url" ? hostname : typeLabels[item.contentType])}</h3>
+    <div className="card-preview">
+      {item.contentType === "code" ? <div className="code-container-preview"><div className="code-window-header"><span /><span /><span /><small>SNIPPET</small></div><pre>{item.content}</pre></div>
+      : item.contentType === "color" ? <div className="color-card-preview"><div className="large-color-swatch" style={{ backgroundColor: item.content }} /><div className="color-caption"><strong>{item.content}</strong><span>HEX COLOR</span></div></div>
+      : item.contentType === "url" ? <div className="url-card-preview"><span className="link-avatar"><Icon name="url" size={24} /></span><strong>{hostname}</strong><a href={/^https?:\/\//i.test(item.content) ? item.content : undefined} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>{item.content}<Icon name="arrow" size={14} /></a></div>
+      : <p className="card-body-preview">{item.content}</p>}
+    </div>
+    <div className="card-project-row" onClick={e => e.stopPropagation()}><Icon name="folder" size={13} /><select aria-label={`Project for ${item.title || typeLabels[item.contentType]}`} value={item.projectId || ""} onChange={e => void onAssignProject(item.id, e.target.value || null)}><option value="">No project</option>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select><span>{item.content.length.toLocaleString()} characters</span></div>
+    <div className="card-bottom-row"><time dateTime={item.createdAt} title={new Date(item.createdAt).toLocaleString()}><Icon name="clock" size={13} />{timeAgo(item.createdAt)}</time><div className="card-quick-actions" onClick={e => e.stopPropagation()}><Button variant="ghost" size="sm" onClick={() => onOpenPreview(item)} title="Open full preview" aria-label="Open full preview"><Icon name="expand" size={15} /></Button><Button variant="ghost" size="sm" disabled={isDeleting} onClick={handleDelete} title="Delete item" aria-label="Delete item"><Icon name="trash" size={15} /></Button><Button variant={copied ? "primary" : "secondary"} size="sm" onClick={handleCopy} aria-label="Copy to system clipboard" icon={<Icon name={copied ? "check" : "copy"} size={14} />}>{copied ? "Copied" : "Copy"}</Button></div></div>
+  </article>;
 };

@@ -1,3 +1,4 @@
+import { Icon } from "../components/ui/Icon";
 import React from "react";
 import { ClipboardItem, Project } from "../shared/clipboard-contract";
 import { ClipboardCard } from "../components/clipboard/ClipboardCard";
@@ -43,9 +44,9 @@ export const PinnedPage: React.FC<PinnedPageProps> = ({
   if (pinnedItems.length === 0) {
     return (
       <EmptyState
-        icon="★"
+        icon={<Icon name="pin" size={30} />}
         title="No pinned snippets yet"
-        description="Pin frequently used code, credentials, snippets, or links to access them with a single click."
+        description="Pin frequently used code, snippets, or links to access them with a single click."
         actionLabel="Browse All Items"
         onAction={onNavigateAll}
       />
@@ -53,10 +54,10 @@ export const PinnedPage: React.FC<PinnedPageProps> = ({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+    <div className="clips-grid">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px", gridColumn: "1 / -1" }}>
         <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text-secondary)" }}>
-          ★ {pinnedItems.length} {pinnedItems.length === 1 ? "Favorite Snippet" : "Favorite Snippets"}
+          {pinnedItems.length} {pinnedItems.length === 1 ? "Favorite Snippet" : "Favorite Snippets"}
         </span>
       </div>
 

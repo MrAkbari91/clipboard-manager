@@ -16,6 +16,7 @@ import { SidePreviewDrawer } from "./components/clipboard/SidePreviewDrawer";
 import { Dialog } from "./components/ui/Dialog";
 import { Button } from "./components/ui/Button";
 import { AlertToast } from "./components/ui/Alert";
+import { Icon } from "./components/ui/Icon";
 
 export default function App() {
   const { isNativeElectron } = useClipboardBrain();
@@ -162,6 +163,7 @@ export default function App() {
   };
 
   const pinnedCount = items.filter((i) => i.isPinned).length;
+  const isCollectionFiltered = Boolean(query.search || query.pinnedOnly || (query.contentType && query.contentType !== "all"));
 
   return (
     <div className="app-container">
@@ -171,9 +173,10 @@ export default function App() {
         onNavigate={(page) => {
           setActivePage(page);
           setSelectedCard(null);
+          resetFilters();
         }}
-        allCount={items.length}
-        pinnedCount={pinnedCount}
+        allCount={isCollectionFiltered ? undefined : items.length}
+        pinnedCount={isCollectionFiltered ? undefined : pinnedCount}
         projectsCount={projects.length}
         isPaused={isPaused}
         isNativeElectron={isNativeElectron}
@@ -195,6 +198,10 @@ export default function App() {
 
         <div className="content-split-layout">
           <main className="page-body">
+            <div className="page-heading">
+              <div><div className="eyebrow">YOUR PERSONAL SECOND BRAIN</div><h1>{{ all: "A home for every copy.", pinned: "Keep the good stuff close.", projects: "A little more organized.", settings: "Make yourself at home." }[activePage]}</h1><p>{{ all: "Less searching. More creating. Everything you copy, in one calm space.", pinned: "Your go-to snippets, saved for the moments that matter.", projects: "Bring related ideas, snippets, and resources together.", settings: "Your workspace, your preferences, your flow." }[activePage]}</p></div>
+              <span className="heading-mark"><Icon name={activePage === "pinned" ? "pin" : activePage === "projects" ? "folder" : activePage === "settings" ? "settings" : "clipboard"} size={32} /></span>
+            </div>
             {activePage === "all" && (
               <AllItemsPage
                 items={items}
@@ -202,7 +209,7 @@ export default function App() {
                 loading={itemsLoading}
                 query={query}
                 selectedItemId={selectedCard?.id}
-                onSelectCard={(item) => setSelectedCard(item)}
+                onSelectCard={(item) => window.innerWidth <= 1100 ? setModalItem(item) : setSelectedCard(item)}
                 onUpdateContentType={updateContentType}
                 onUpdatePinnedOnly={updatePinnedOnly}
                 onUpdateSort={updateSort}
@@ -221,7 +228,7 @@ export default function App() {
                 projects={projects}
                 loading={itemsLoading}
                 selectedItemId={selectedCard?.id}
-                onSelectCard={(item) => setSelectedCard(item)}
+                onSelectCard={(item) => window.innerWidth <= 1100 ? setModalItem(item) : setSelectedCard(item)}
                 onCopy={handleCopy}
                 onPin={handlePin}
                 onDelete={handleDelete}
@@ -237,7 +244,7 @@ export default function App() {
                 items={items}
                 loading={projectsLoading}
                 selectedItemId={selectedCard?.id}
-                onSelectCard={(item) => setSelectedCard(item)}
+                onSelectCard={(item) => window.innerWidth <= 1100 ? setModalItem(item) : setSelectedCard(item)}
                 onCreateProject={createProject}
                 onCopy={handleCopy}
                 onPin={handlePin}
@@ -258,6 +265,7 @@ export default function App() {
                 onSetTheme={setTheme}
               />
             )}
+            <footer className="workspace-footer"><span><Icon name="shield" size={14} />{isNativeElectron ? "Your clipboard stays on this device." : "Browser preview · sample clips are not saved."}</span><span>Made for a clearer mind.</span></footer>
           </main>
 
           {/* Desktop Side Inspector Drawer (opens when a card is selected) */}

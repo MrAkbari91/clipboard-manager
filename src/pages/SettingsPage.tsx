@@ -1,3 +1,4 @@
+import { Icon } from "../components/ui/Icon";
 import React, { useState } from "react";
 import { Button } from "../components/ui/Button";
 import { Dialog } from "../components/ui/Dialog";
@@ -36,7 +37,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px", maxWidth: "720px" }}>
+    <div className="settings-page" style={{ display: "flex", flexDirection: "column", gap: "20px", maxWidth: "860px" }}>
       <div>
         <h2 style={{ fontSize: "1.25rem", fontWeight: 700 }}>Settings & Preferences</h2>
         <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "4px" }}>
@@ -85,6 +86,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               key={mode}
               type="button"
               onClick={() => onSetTheme(mode)}
+              aria-pressed={theme === mode}
               style={{
                 flex: 1,
                 padding: "10px 14px",
@@ -102,9 +104,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 transition: "all var(--transition-fast)",
               }}
             >
-              <span style={{ fontSize: "1.25rem" }}>
-                {mode === "light" ? "☀️" : mode === "dark" ? "🌙" : "💻"}
-              </span>
+              <span className={`theme-preview ${mode}`} aria-hidden="true" />
               <span style={{ textTransform: "capitalize" }}>{mode} Mode</span>
             </button>
           ))}
@@ -129,13 +129,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "4px" }}>
             {isPaused
               ? "Capture is paused. No new items will be stored until resumed."
-              : "Active. Clipboard Brain monitors the OS clipboard every 700ms and stores new items."}
+              : (isNativeElectron ? "New copies are automatically added to your collection." : "Browser preview uses sample clips. Open the desktop app to capture your clipboard.")}
           </p>
         </div>
         <Button
           variant={isPaused ? "primary" : "secondary"}
           onClick={onToggleCapture}
-          icon={isPaused ? "▶" : "⏸"}
+          icon={<Icon name={isPaused ? "play" : "pause"} size={15} />}
         >
           {isPaused ? "Resume Capture" : "Pause Capture"}
         </Button>
@@ -155,19 +155,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         }}
       >
         <div>
-          <h3 style={{ fontSize: "0.9375rem", fontWeight: 600 }}>Purge Clipboard History</h3>
+          <h3 style={{ fontSize: "0.9375rem", fontWeight: 600 }}>Clear clipboard history</h3>
           <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "4px" }}>
             Permanently delete all clipboard items and code snippets stored on this device.
           </p>
           <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
-            Database contains {totalItemsCount} total records.
+            {totalItemsCount} clips in your collection.
           </span>
         </div>
         <Button
           variant="danger"
           disabled={totalItemsCount === 0}
           onClick={() => setIsConfirmClearOpen(true)}
-          icon="🗑"
+          icon={<Icon name="trash" size={16} />}
         >
           Clear History
         </Button>
@@ -186,14 +186,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         }}
       >
         <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
-          <span>🛡️</span> 100% Local-First Privacy Guarantee
+          <Icon name="shield" /> Private by design
         </h3>
         <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>
-          • <strong>Zero External Servers:</strong> Your clipboard history is saved strictly to your machine&apos;s local SQLite database.
-          <br />
-          • <strong>No Analytics or Tracking:</strong> Neither content nor metadata is ever transmitted over the network.
-          <br />
-          • <strong>Process Security:</strong> {isNativeElectron ? "Connected to Electron IPC bridge via Context Isolation." : "Running inside browser dev sandbox."}
+          {isNativeElectron ? "Your clipboard history is stored locally on this device. You can pause capture or clear your history at any time." : "You are exploring the browser preview with temporary sample data. Use the desktop application to save and capture your clipboard."}
+          <br />Clipboard content can include sensitive information. Keep only what you need.
         </p>
       </section>
 
