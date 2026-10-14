@@ -6,6 +6,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
+    "start": "electron .",
     "build": "tsc && vite build && tsc -p tsconfig.electron.json",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"electron/**/*.{ts,tsx}\"",
