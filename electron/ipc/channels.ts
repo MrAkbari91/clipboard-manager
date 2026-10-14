@@ -10,4 +10,5 @@ export const IPC_CHANNELS = {
   GET_PROJECTS: "clipboard:get-projects",
   CREATE_PROJECT: "clipboard:create-project",
   ASSIGN_PROJECT: "clipboard:assign-project",
+  OPEN_STORAGE_FOLDER: "clipboard:open-storage-folder",
 } as const;

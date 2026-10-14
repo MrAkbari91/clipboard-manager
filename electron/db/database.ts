@@ -12,10 +12,13 @@ import {
 export class DatabaseService {
   private prisma: PrismaClient | null = null;
   private dbPath: string;
+  private storageDir: string;
   private maxHistoryLimit: number = 2000;
 
   constructor(customDbPath?: string) {
     this.dbPath = customDbPath ?? DatabaseService.resolveDatabasePath();
+    this.storageDir = path.join(path.dirname(this.dbPath), "storage");
+    this.ensureStorageFolders();
   }
 
   public static resolveDatabasePath(): string {
@@ -38,8 +41,51 @@ export class DatabaseService {
     return path.join(fallbackDir, "clipboard-brain.db");
   }
 
+  private ensureStorageFolders(): void {
+    const categories = ["images", "urls", "videos", "text", "json", "emoji", "colors", "code"];
+    for (const cat of categories) {
+      const folderPath = path.join(this.storageDir, cat);
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+      }
+    }
+  }
+
+  public static getCategoryFolderName(type: ClipboardContentType): string {
+    switch (type) {
+      case "image":
+        return "images";
+      case "url":
+        return "urls";
+      case "video":
+        return "videos";
+      case "json":
+        return "json";
+      case "emoji":
+        return "emoji";
+      case "color":
+        return "colors";
+      case "code":
+        return "code";
+      default:
+        return "text";
+    }
+  }
+
   public getDbPath(): string {
     return this.dbPath;
+  }
+
+  public getStorageDirectory(category?: string): string {
+    if (category && category !== "all") {
+      const folder = DatabaseService.getCategoryFolderName(category as ClipboardContentType);
+      const target = path.join(this.storageDir, folder);
+      if (!fs.existsSync(target)) {
+        fs.mkdirSync(target, { recursive: true });
+      }
+      return target;
+    }
+    return this.storageDir;
   }
 
   public async initialize(): Promise<void> {
@@ -167,6 +213,41 @@ export class DatabaseService {
     };
   }
 
+  public saveItemToFolder(item: ClipboardItem): void {
+    try {
+      const folderName = DatabaseService.getCategoryFolderName(item.contentType);
+      const targetDir = path.join(this.storageDir, folderName);
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+
+      if (item.contentType === "image") {
+        const match = item.content.match(/^data:image\/(\w+);base64,(.+)$/);
+        if (match) {
+          const ext = match[1] === "jpeg" ? "jpg" : match[1];
+          const buffer = Buffer.from(match[2], "base64");
+          const filePath = path.join(targetDir, `${item.id}.${ext}`);
+          fs.writeFileSync(filePath, buffer);
+        }
+      } else if (item.contentType === "json") {
+        const filePath = path.join(targetDir, `${item.id}.json`);
+        try {
+          const formatted = JSON.stringify(JSON.parse(item.content), null, 2);
+          fs.writeFileSync(filePath, formatted, "utf-8");
+        } catch {
+          fs.writeFileSync(filePath, item.content, "utf-8");
+        }
+      } else {
+        const filePath = path.join(targetDir, `${item.id}.txt`);
+        fs.writeFileSync(filePath, item.content, "utf-8");
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Failed to save item to folder:", err);
+      }
+    }
+  }
+
   public async addItem(data: {
     content: string;
     contentType: ClipboardContentType;
@@ -192,7 +273,9 @@ export class DatabaseService {
           title: data.title ?? existing.title,
         },
       });
-      return this.mapItem(updated);
+      const mapped = this.mapItem(updated);
+      this.saveItemToFolder(mapped);
+      return mapped;
     }
 
     const created = await this.prisma!.clipboardItem.create({
@@ -205,10 +288,13 @@ export class DatabaseService {
       },
     });
 
+    const mapped = this.mapItem(created);
+    this.saveItemToFolder(mapped);
+
     // Prune excess unpinned history if exceeding limit
     this.pruneHistory().catch(() => {});
 
-    return this.mapItem(created);
+    return mapped;
   }
 
   private async pruneHistory(): Promise<void> {
