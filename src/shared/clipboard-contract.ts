@@ -40,6 +40,7 @@ export interface ClipboardBrainAPI {
   createProject(input: { name: string; description?: string }): Promise<Project>;
   assignProject(itemId: string, projectId: string | null): Promise<ClipboardItem>;
   openStorageFolder(category?: string): Promise<{ success: boolean; path: string }>;
+  cleanExpiredItems(days?: number): Promise<{ deletedCount: number }>;
 }
 
 export interface Project {

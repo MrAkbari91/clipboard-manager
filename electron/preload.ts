@@ -49,6 +49,9 @@ const api: ClipboardBrainAPI = {
   openStorageFolder: (category?: string): Promise<{ success: boolean; path: string }> => {
     return ipcRenderer.invoke(IPC_CHANNELS.OPEN_STORAGE_FOLDER, category);
   },
+  cleanExpiredItems: (days?: number): Promise<{ deletedCount: number }> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.CLEAN_EXPIRED, days);
+  },
 };
 
 contextBridge.exposeInMainWorld("clipboardBrain", api);

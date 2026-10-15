@@ -170,6 +170,17 @@ export function registerIpcHandlers({ db, monitor, getMainWindow: _getMainWindow
       throw new Error(`Failed to open storage folder: ${err.message}`);
     }
   });
+
+  // 12. Clean Expired Items (Auto-cleanup / 1-week expiry)
+  ipcMain.handle(IPC_CHANNELS.CLEAN_EXPIRED, async (_event, days?: number) => {
+    try {
+      const retentionDays = typeof days === "number" && days > 0 ? days : 7;
+      return await db.cleanupExpiredItems(retentionDays);
+    } catch (err: any) {
+      console.error("IPC CLEAN_EXPIRED error:", err.message);
+      throw new Error(`Failed to clean expired items: ${err.message}`);
+    }
+  });
 }
 
 export function unregisterIpcHandlers(): void {

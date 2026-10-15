@@ -17,6 +17,7 @@ let db: DatabaseService | null = null;
 let monitor: ClipboardMonitor | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
+let cleanupTimer: NodeJS.Timeout | null = null;
 
 // 16x16 crisp clipboard tray icon PNG (base64)
 const TRAY_ICON_BASE64 =
@@ -165,6 +166,15 @@ async function bootstrap() {
 
     // 6. Start clipboard monitoring (runs continuously in background)
     monitor.start();
+
+    // 7. Schedule hourly background auto-cleanup for items older than 1 week (7 days)
+    cleanupTimer = setInterval(() => {
+      db?.cleanupExpiredItems().catch((err) => {
+        if (process.env.NODE_ENV !== "production") {
+          console.error("Hourly expired items cleanup error:", err);
+        }
+      });
+    }, 60 * 60 * 1000);
   } catch (err) {
     console.error("Fatal startup error in Clipboard Brain main process:", err);
     app.quit();
@@ -197,6 +207,10 @@ app.on("activate", () => {
 
 app.on("before-quit", async () => {
   isQuitting = true;
+  if (cleanupTimer) {
+    clearInterval(cleanupTimer);
+    cleanupTimer = null;
+  }
   if (monitor) {
     monitor.stop();
   }

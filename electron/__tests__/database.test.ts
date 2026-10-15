@@ -173,4 +173,72 @@ describe("DatabaseService - SQLite Persistence & Operations", () => {
     const removed = await db.getItemById(unpinned.id);
     expect(removed).toBeNull();
   });
+
+  it("removes unpinned items older than 7 days and preserves pinned items", async () => {
+    const oldUnpinned = await db.addItem({
+      content: "Old unpinned item from 8 days ago",
+      contentType: "text",
+    });
+
+    const oldPinned = await db.addItem({
+      content: "Old pinned item from 8 days ago",
+      contentType: "text",
+    });
+    await db.pinItem(oldPinned.id, true);
+
+    const recentItem = await db.addItem({
+      content: "Fresh item from today",
+      contentType: "text",
+    });
+
+    // Manually backdate the createdAt timestamp for the old items
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+    const prisma = (db as any).prisma;
+    await prisma.clipboardItem.update({
+      where: { id: oldUnpinned.id },
+      data: { createdAt: eightDaysAgo },
+    });
+    await prisma.clipboardItem.update({
+      where: { id: oldPinned.id },
+      data: { createdAt: eightDaysAgo },
+    });
+
+    // Verify storage file exists
+    const storageTextDir = db.getStorageDirectory("text");
+    const oldUnpinnedFile = path.join(storageTextDir, `${oldUnpinned.id}.txt`);
+    expect(fs.existsSync(oldUnpinnedFile)).toBe(true);
+
+    // Run cleanup for items older than 7 days
+    const cleanupResult = await db.cleanupExpiredItems(7);
+    expect(cleanupResult.deletedCount).toBeGreaterThanOrEqual(1);
+
+    // Old unpinned item must be deleted from DB and disk
+    const fetchedOldUnpinned = await db.getItemById(oldUnpinned.id);
+    expect(fetchedOldUnpinned).toBeNull();
+    expect(fs.existsSync(oldUnpinnedFile)).toBe(false);
+
+    // Old pinned item must be preserved
+    const fetchedOldPinned = await db.getItemById(oldPinned.id);
+    expect(fetchedOldPinned).not.toBeNull();
+    expect(fetchedOldPinned?.isPinned).toBe(true);
+
+    // Fresh item must be preserved
+    const fetchedRecent = await db.getItemById(recentItem.id);
+    expect(fetchedRecent).not.toBeNull();
+  });
+
+  it("deleteItem cleans up storage file on disk", async () => {
+    const item = await db.addItem({
+      content: "Item with storage file to be deleted",
+      contentType: "text",
+    });
+
+    const storageTextDir = db.getStorageDirectory("text");
+    const file = path.join(storageTextDir, `${item.id}.txt`);
+    expect(fs.existsSync(file)).toBe(true);
+
+    await db.deleteItem(item.id);
+    expect(fs.existsSync(file)).toBe(false);
+  });
 });
+
