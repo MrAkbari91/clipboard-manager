@@ -1,6 +1,6 @@
 {
   "name": "clipboard-brain",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Smart desktop clipboard brain and history manager",
   "main": "dist-electron/electron/main.js",
   "private": true,
@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "package": "npm run build && electron-builder"
+    "package": "npm run prisma:generate && npm run build && electron-builder"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

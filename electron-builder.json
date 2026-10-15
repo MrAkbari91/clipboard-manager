@@ -10,6 +10,11 @@
     "dist-electron/**/*",
     "assets/**/*",
     "node_modules/**/*",
+    {
+      "from": "node_modules/.prisma/client",
+      "to": "node_modules/.prisma/client",
+      "filter": ["**/*"]
+    },
     "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
     "!node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
     "!node_modules/*.d.ts",
@@ -17,14 +22,32 @@
     "prisma/schema.prisma",
     "prisma/migrations/**/*"
   ],
+  "asarUnpack": ["node_modules/.prisma/client/**/*"],
   "win": {
+    "icon": "assets/icon.ico",
     "target": ["nsis", "portable"],
-    "artifactName": "${productName}-Setup-${version}.${ext}"
+    "artifactName": "${productName}-Windows-${version}.${ext}"
   },
   "nsis": {
+    "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
     "perMachine": false,
     "deleteAppDataOnUninstall": false
+  },
+  "portable": {
+    "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
+  },
+  "mac": {
+    "icon": "assets/icon.png",
+    "target": ["dmg", "zip"],
+    "category": "public.app-category.utilities",
+    "artifactName": "${productName}-macOS-${version}.${ext}"
+  },
+  "linux": {
+    "icon": "assets/icon.png",
+    "target": ["AppImage", "deb"],
+    "category": "Utility",
+    "artifactName": "${productName}-Linux-${version}.${ext}"
   }
 }
