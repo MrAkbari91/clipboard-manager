@@ -9,6 +9,11 @@
     "dist/**/*",
     "dist-electron/**/*",
     "node_modules/**/*",
+    {
+      "from": "node_modules/.prisma/client",
+      "to": "node_modules/.prisma/client",
+      "filter": ["**/*"]
+    },
     "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
     "!node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
     "!node_modules/*.d.ts",
@@ -16,16 +21,21 @@
     "prisma/schema.prisma",
     "prisma/migrations/**/*"
   ],
+  "asarUnpack": ["node_modules/.prisma/client/**/*"],
   "win": {
     "icon": "assets/icon.ico",
     "target": ["nsis", "portable"],
     "artifactName": "${productName}-Windows-${version}.${ext}"
   },
   "nsis": {
+    "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
     "perMachine": false,
     "deleteAppDataOnUninstall": false
+  },
+  "portable": {
+    "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
   },
   "mac": {
     "icon": "assets/icon.png",
