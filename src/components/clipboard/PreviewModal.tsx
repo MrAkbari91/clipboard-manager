@@ -1,8 +1,10 @@
+import { Icon } from "../ui/Icon";
 import React, { useState } from "react";
 import { ClipboardItem, Project } from "../../shared/clipboard-contract";
 import { Dialog } from "../ui/Dialog";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
+import { hasRichPreview, RichContentPreview } from "./RichContentPreview";
 
 export interface PreviewModalProps {
   item: ClipboardItem | null;
@@ -44,8 +46,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
   };
 
   const handleDelete = async () => {
-    await onDelete(item.id);
-    onClose();
+    if (await onDelete(item.id)) onClose();
   };
 
   return (
@@ -56,7 +57,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
       description={`Captured on ${new Date(item.createdAt).toLocaleString()}`}
       footer={
         <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
-          <Button variant="danger" size="sm" onClick={handleDelete} icon="🗑">
+          <Button variant="danger" size="sm" onClick={handleDelete} icon={<Icon name="trash" size={15} />}>
             Delete
           </Button>
           <div style={{ display: "flex", gap: "8px" }}>
@@ -64,7 +65,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
               {item.isPinned ? "★ Unpin" : "☆ Pin"}
             </Button>
             <Button variant="primary" onClick={handleCopy}>
-              {copied ? "✓ Copied to Clipboard" : "📋 Copy Content"}
+              {copied ? "✓ Copied to Clipboard" : "Copy content"}
             </Button>
           </div>
         </div>
@@ -130,7 +131,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
         )}
 
         {/* Content Box */}
-        <pre
+        {hasRichPreview(item) ? <RichContentPreview item={item} /> : <pre
           style={{
             fontFamily: item.contentType === "code" ? "var(--font-mono)" : "inherit",
             backgroundColor: "var(--bg-input)",
@@ -147,7 +148,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
           }}
         >
           {item.content}
-        </pre>
+        </pre>}
       </div>
     </Dialog>
   );

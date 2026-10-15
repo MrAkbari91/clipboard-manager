@@ -1,3 +1,4 @@
+import { Icon } from "../components/ui/Icon";
 import React, { useState } from "react";
 import { ClipboardItem, Project } from "../shared/clipboard-contract";
 import { ClipboardCard } from "../components/clipboard/ClipboardCard";
@@ -68,10 +69,10 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
         <div>
           <h2 style={{ fontSize: "1.125rem", fontWeight: 700 }}>Projects & Collections</h2>
           <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "2px" }}>
-            Group related snippets, credentials, code blocks, and resources.
+            Group related snippets, code blocks, and resources.
           </p>
         </div>
-        <Button variant="primary" onClick={() => setIsCreateOpen(true)} icon="➕">
+        <Button variant="primary" onClick={() => setIsCreateOpen(true)} icon={<Icon name="plus" size={16} />}>
           New Project
         </Button>
       </div>
@@ -82,7 +83,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
         </div>
       ) : projects.length === 0 ? (
         <EmptyState
-          icon="📁"
+          icon={<Icon name="folder" size={30} />}
           title="No projects created yet"
           description="Create workspaces for specific clients, repositories, or topics."
           actionLabel="Create Project"
@@ -123,7 +124,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                     transition: "all var(--transition-fast)",
                   }}
                 >
-                  <span>📁</span>
+                  <Icon name="folder" size={17} />
                   <span>{proj.name}</span>
                   <span
                     style={{
@@ -152,7 +153,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                 }}
               >
                 <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-primary)" }}>
-                  📁 {currentProject.name}
+                  {currentProject.name}
                 </h3>
                 {currentProject.description && (
                   <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", marginTop: "4px" }}>
@@ -167,12 +168,12 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
               {/* Items in this project */}
               {projectItems.length === 0 ? (
                 <EmptyState
-                  icon="🏷️"
+                  icon={<Icon name="folder" size={30} />}
                   title="No items in this project yet"
                   description="Use the project dropdown on any clipboard card to assign items to this folder."
                 />
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div className="clips-grid">
                   {projectItems.map((item) => (
                     <ClipboardCard
                       key={item.id}

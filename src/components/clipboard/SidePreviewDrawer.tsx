@@ -1,6 +1,8 @@
+import { Icon } from "../ui/Icon";
 import React, { useState } from "react";
 import { ClipboardItem, Project } from "../../shared/clipboard-contract";
 import { Button } from "../ui/Button";
+import { hasRichPreview, RichContentPreview } from "./RichContentPreview";
 
 export interface SidePreviewDrawerProps {
   item: ClipboardItem | null;
@@ -52,13 +54,7 @@ export const SidePreviewDrawer: React.FC<SidePreviewDrawerProps> = ({
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <span style={{ fontSize: "1.1rem" }}>
-            {item.contentType === "code"
-              ? "💻"
-              : item.contentType === "url"
-              ? "🔗"
-              : item.contentType === "color"
-              ? "🎨"
-              : "📄"}
+            <Icon name={item.contentType} />
           </span>
           <h3 style={{ fontSize: "0.9375rem", fontWeight: 600 }}>Inspector</h3>
         </div>
@@ -72,7 +68,7 @@ export const SidePreviewDrawer: React.FC<SidePreviewDrawerProps> = ({
         {/* Quick Actions Bar */}
         <div style={{ display: "flex", gap: "8px" }}>
           <Button variant="primary" style={{ flex: 1 }} onClick={handleCopy}>
-            {copied ? "✓ Copied" : "📋 Copy Content"}
+            {copied ? "✓ Copied" : "Copy content"}
           </Button>
           <Button
             variant="secondary"
@@ -81,8 +77,8 @@ export const SidePreviewDrawer: React.FC<SidePreviewDrawerProps> = ({
           >
             {item.isPinned ? "★ Unpin" : "☆ Pin"}
           </Button>
-          <Button variant="ghost" onClick={() => onDelete(item.id)} style={{ color: "var(--accent-rose)" }}>
-            🗑
+          <Button variant="ghost" aria-label="Delete item" onClick={() => onDelete(item.id)} style={{ color: "var(--accent-rose)" }}>
+            <Icon name="trash" size={16} />
           </Button>
         </div>
 
@@ -92,14 +88,14 @@ export const SidePreviewDrawer: React.FC<SidePreviewDrawerProps> = ({
             Assigned Project
           </label>
           <select
-            className="select-field"
+            className="select-field" aria-label="Assigned project"
             value={item.projectId || ""}
             onChange={(e) => onAssignProject(item.id, e.target.value ? e.target.value : null)}
           >
             <option value="">No Project Assigned</option>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
-                📁 {p.name}
+                {p.name}
               </option>
             ))}
           </select>
@@ -144,16 +140,16 @@ export const SidePreviewDrawer: React.FC<SidePreviewDrawerProps> = ({
               {charCount} chars • {wordCount} words • {lineCount} lines
             </span>
           </div>
-          <pre
+          {hasRichPreview(item) ? <RichContentPreview item={item} /> : <pre
             style={{
               padding: "14px",
               borderRadius: "var(--radius-md)",
-              backgroundColor: "var(--bg-code-block)",
+              backgroundColor: "var(--bg-input)",
               border: "1px solid var(--border-subtle)",
               fontFamily: item.contentType === "code" ? "var(--font-mono)" : "var(--font-sans)",
               fontSize: "0.8125rem",
               lineHeight: 1.6,
-              color: item.contentType === "code" ? "#38bdf8" : "var(--text-primary)",
+              color: item.contentType === "code" ? "var(--text-code)" : "var(--text-primary)",
               whiteSpace: "pre-wrap",
               wordBreak: "break-word",
               maxHeight: "360px",
@@ -161,7 +157,7 @@ export const SidePreviewDrawer: React.FC<SidePreviewDrawerProps> = ({
             }}
           >
             {item.content}
-          </pre>
+          </pre>}
         </div>
 
         {/* Metadata Details */}

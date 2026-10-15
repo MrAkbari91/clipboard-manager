@@ -81,16 +81,16 @@ describe("createMockClipboardAPI Adapter", () => {
     expect(afterDelete.some((i) => i.id === targetId)).toBe(false);
   });
 
-  it("clears all items and returns count", async () => {
+  it("clears unpinned items and preserves pinned clips like the native API", async () => {
     const api = createMockClipboardAPI();
     const initialItems = await api.getItems();
     expect(initialItems.length).toBeGreaterThan(0);
 
     const clearRes = await api.clearHistory();
-    expect(clearRes.deletedCount).toBe(initialItems.length);
+    expect(clearRes.deletedCount).toBe(initialItems.filter((item) => !item.isPinned).length);
 
     const afterClear = await api.getItems();
-    expect(afterClear.length).toBe(0);
+    expect(afterClear).toEqual(initialItems.filter((item) => item.isPinned));
   });
 
   it("toggles capture paused state", async () => {

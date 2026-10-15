@@ -2,20 +2,50 @@ import { describe, it, expect } from "vitest";
 import { ClipboardMonitor } from "../clipboard-monitor";
 
 describe("ClipboardMonitor - Content Type Detection", () => {
-  it("detects hex color codes correctly", () => {
+  it("detects all hex and modern CSS color formats correctly", () => {
+    // Hex
     expect(ClipboardMonitor.detectContentType("#ffffff")).toBe("color");
     expect(ClipboardMonitor.detectContentType("#FFF")).toBe("color");
     expect(ClipboardMonitor.detectContentType("#3b82f6")).toBe("color");
     expect(ClipboardMonitor.detectContentType("#00ff0080")).toBe("color");
-  });
 
-  it("detects css colors correctly", () => {
+    // RGB / RGBA
     expect(ClipboardMonitor.detectContentType("rgb(255, 0, 0)")).toBe("color");
     expect(ClipboardMonitor.detectContentType("rgba(0, 0, 0, 0.5)")).toBe("color");
+
+    // HSL / HSLA
     expect(ClipboardMonitor.detectContentType("hsl(200, 50%, 50%)")).toBe("color");
+    expect(ClipboardMonitor.detectContentType("hsla(120, 100%, 50%, 0.8)")).toBe("color");
+
+    // OKLCH / LAB
+    expect(ClipboardMonitor.detectContentType("oklch(0.6 0.25 150)")).toBe("color");
+    expect(ClipboardMonitor.detectContentType("lab(50% 40 59.5)")).toBe("color");
   });
 
-  it("detects valid URLs correctly", () => {
+  it("detects videos (YouTube, Vimeo, and video file extensions) correctly", () => {
+    expect(ClipboardMonitor.detectContentType("https://www.youtube.com/watch?v=dQw4w9WgXcQ")).toBe("video");
+    expect(ClipboardMonitor.detectContentType("https://youtu.be/dQw4w9WgXcQ")).toBe("video");
+    expect(ClipboardMonitor.detectContentType("https://youtube.com/shorts/abc123xyz")).toBe("video");
+    expect(ClipboardMonitor.detectContentType("https://vimeo.com/123456789")).toBe("video");
+    expect(ClipboardMonitor.detectContentType("https://cdn.example.com/assets/sample-video.mp4")).toBe("video");
+    expect(ClipboardMonitor.detectContentType("https://media.org/clip.webm?source=web")).toBe("video");
+  });
+
+  it("detects JSON formats correctly", () => {
+    const jsonObject = `{\n  "name": "Clipboard Brain",\n  "version": "1.0.0"\n}`;
+    expect(ClipboardMonitor.detectContentType(jsonObject)).toBe("json");
+
+    const jsonArray = `[{"id": 1, "status": "active"}, {"id": 2, "status": "pending"}]`;
+    expect(ClipboardMonitor.detectContentType(jsonArray)).toBe("json");
+  });
+
+  it("detects emojis correctly", () => {
+    expect(ClipboardMonitor.detectContentType("😀🎉🚀")).toBe("emoji");
+    expect(ClipboardMonitor.detectContentType("🔥")).toBe("emoji");
+    expect(ClipboardMonitor.detectContentType("❤️ ✨ 👍")).toBe("emoji");
+  });
+
+  it("detects general URLs correctly", () => {
     expect(ClipboardMonitor.detectContentType("https://github.com")).toBe("url");
     expect(ClipboardMonitor.detectContentType("http://localhost:3000/dashboard")).toBe("url");
     expect(ClipboardMonitor.detectContentType("https://example.com/path?query=1&foo=bar")).toBe("url");
@@ -26,9 +56,6 @@ describe("ClipboardMonitor - Content Type Detection", () => {
       return items.reduce((acc, curr) => acc + curr.price, 0);
     }`;
     expect(ClipboardMonitor.detectContentType(jsCode)).toBe("code");
-
-    const jsonSnippet = `{\n  "name": "Clipboard Brain",\n  "version": "1.0.0"\n}`;
-    expect(ClipboardMonitor.detectContentType(jsonSnippet)).toBe("code");
 
     const sqlSnippet = "SELECT id, name, created_at FROM users WHERE is_active = 1;";
     expect(ClipboardMonitor.detectContentType(sqlSnippet)).toBe("code");
@@ -50,6 +77,21 @@ describe("ClipboardMonitor - Title Derivation", () => {
 
   it("derives uppercase title for colors", () => {
     expect(ClipboardMonitor.deriveTitle("#3b82f6", "color")).toBe("#3B82F6");
+    expect(ClipboardMonitor.deriveTitle("rgb(255, 0, 0)", "color")).toBe("RGB(255, 0, 0)");
+  });
+
+  it("derives clear titles for JSON", () => {
+    expect(ClipboardMonitor.deriveTitle('{"a": 1, "b": 2}', "json")).toBe("JSON Object (2 keys)");
+    expect(ClipboardMonitor.deriveTitle("[1, 2, 3, 4]", "json")).toBe("JSON Array (4 items)");
+  });
+
+  it("derives video titles for videos", () => {
+    expect(ClipboardMonitor.deriveTitle("https://youtu.be/xyz", "video")).toBe("YouTube Video");
+    expect(ClipboardMonitor.deriveTitle("https://vimeo.com/123", "video")).toBe("Vimeo Video");
+  });
+
+  it("derives emoji as title", () => {
+    expect(ClipboardMonitor.deriveTitle("🔥🚀", "emoji")).toBe("🔥🚀");
   });
 
   it("derives first line for text", () => {

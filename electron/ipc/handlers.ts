@@ -1,4 +1,4 @@
-import { ipcMain, clipboard, BrowserWindow } from "electron";
+import { ipcMain, clipboard, BrowserWindow, shell, nativeImage } from "electron";
 import { IPC_CHANNELS } from "./channels";
 import { DatabaseService } from "../db/database";
 import { ClipboardMonitor } from "../clipboard-monitor";
@@ -24,7 +24,7 @@ export function registerIpcHandlers({ db, monitor, getMainWindow: _getMainWindow
     }
   });
 
-  // 2. Copy Item to System Clipboard
+  // 2. Copy Item to System Clipboard in its native format (image or text)
   ipcMain.handle(IPC_CHANNELS.COPY_ITEM, async (_event, id: string) => {
     try {
       if (!id || typeof id !== "string") {
@@ -34,7 +34,13 @@ export function registerIpcHandlers({ db, monitor, getMainWindow: _getMainWindow
       if (!item) {
         throw new Error(`Clipboard item with ID ${id} not found`);
       }
-      clipboard.writeText(item.content);
+
+      if (item.contentType === "image") {
+        const img = nativeImage.createFromDataURL(item.content);
+        clipboard.writeImage(img);
+      } else {
+        clipboard.writeText(item.content);
+      }
       return { success: true };
     } catch (err: any) {
       console.error("IPC COPY_ITEM error:", err.message);
@@ -152,6 +158,18 @@ export function registerIpcHandlers({ db, monitor, getMainWindow: _getMainWindow
       }
     }
   );
+
+  // 11. Open Storage Folder in Windows Explorer
+  ipcMain.handle(IPC_CHANNELS.OPEN_STORAGE_FOLDER, async (_event, category?: string) => {
+    try {
+      const folderPath = db.getStorageDirectory(category);
+      await shell.openPath(folderPath);
+      return { success: true, path: folderPath };
+    } catch (err: any) {
+      console.error("IPC OPEN_STORAGE_FOLDER error:", err.message);
+      throw new Error(`Failed to open storage folder: ${err.message}`);
+    }
+  });
 }
 
 export function unregisterIpcHandlers(): void {

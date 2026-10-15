@@ -131,9 +131,13 @@ export function createMockClipboardAPI(): ClipboardBrainAPI {
     },
 
     async clearHistory(): Promise<{ deletedCount: number }> {
-      const count = items.length;
-      items = [];
+      const count = items.filter((item) => !item.isPinned).length;
+      items = items.filter((item) => item.isPinned);
       return { deletedCount: count };
+    },
+
+    async openStorageFolder(): Promise<{ success: boolean; path: string }> {
+      throw new Error("Storage folders are available in the desktop application.");
     },
 
     async getCaptureStatus(): Promise<{ isPaused: boolean }> {

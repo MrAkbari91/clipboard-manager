@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { Icon } from "../components/ui/Icon";
 import { ClipboardItem, ClipboardQuery, Project } from "../shared/clipboard-contract";
 import { FilterBar } from "../components/clipboard/FilterBar";
 import { ClipboardCard } from "../components/clipboard/ClipboardCard";
@@ -39,6 +40,7 @@ export const AllItemsPage: React.FC<AllItemsPageProps> = ({
   onAssignProject,
   onOpenPreview,
 }) => {
+  const [view, setView] = useState<"grid" | "list">("grid");
   const isFiltered = Boolean(
     query.search ||
       (query.contentType && query.contentType !== "all") ||
@@ -47,7 +49,7 @@ export const AllItemsPage: React.FC<AllItemsPageProps> = ({
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+    <div className="all-items-page">
       <FilterBar
         selectedType={query.contentType || "all"}
         onSelectType={onUpdateContentType}
@@ -59,14 +61,20 @@ export const AllItemsPage: React.FC<AllItemsPageProps> = ({
         isFiltered={isFiltered}
       />
 
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "60px", color: "var(--text-muted)" }}>
-          <p className="text-body">Loading clipboard history...</p>
+      <div className="collection-toolbar">
+        <div><strong>{isFiltered ? "Search results" : "Your collection"}</strong><span>{items.length} {items.length === 1 ? "clip" : "clips"}</span></div>
+        <div className="view-switch" aria-label="Collection layout">
+          <button className={view === "grid" ? "active" : ""} onClick={() => setView("grid")} aria-label="Grid view" aria-pressed={view === "grid"}><Icon name="grid" size={16} /></button>
+          <button className={view === "list" ? "active" : ""} onClick={() => setView("list")} aria-label="List view" aria-pressed={view === "list"}><Icon name="list" size={17} /></button>
         </div>
+      </div>
+
+      {loading ? (
+        <div className="clips-grid" role="status" aria-label="Loading clipboard history">{[1, 2, 3, 4].map(n => <div key={n} className="skeleton-card"><span /><span /><span /></div>)}</div>
       ) : items.length === 0 ? (
         isFiltered ? (
           <EmptyState
-            icon="🔍"
+            icon={<Icon name="search" size={30} />}
             title="No matching clipboard items"
             description="No items match your active search keyword or filter settings. Try clearing your filters."
             actionLabel="Reset all filters"
@@ -74,13 +82,13 @@ export const AllItemsPage: React.FC<AllItemsPageProps> = ({
           />
         ) : (
           <EmptyState
-            icon="🧠"
-            title="Clipboard Brain is waiting for copies"
-            description="Copy any text, URL, code, or hex color anywhere on your OS. It will automatically appear here with instant search and organization."
+            icon={<Icon name="clipboard" size={30} />}
+            title="Your next great idea starts with a copy."
+            description="Copy text, a link, some code, or a color in the desktop app. Your clips will be right here when you need them."
           />
         )
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div className={`clips-grid ${view === "list" ? "list-view" : ""}`}>
           {items.map((item) => (
             <ClipboardCard
               key={item.id}

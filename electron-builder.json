@@ -17,6 +17,7 @@
     "prisma/migrations/**/*"
   ],
   "win": {
+    "icon": "assets/icon.ico",
     "target": ["nsis", "portable"],
     "artifactName": "${productName}-Windows-${version}.${ext}"
   },
@@ -27,11 +28,13 @@
     "deleteAppDataOnUninstall": false
   },
   "mac": {
+    "icon": "assets/icon.png",
     "target": ["dmg", "zip"],
     "category": "public.app-category.utilities",
     "artifactName": "${productName}-macOS-${version}.${ext}"
   },
   "linux": {
+    "icon": "assets/icon.png",
     "target": ["AppImage", "deb"],
     "category": "Utility",
     "artifactName": "${productName}-Linux-${version}.${ext}"

@@ -51,33 +51,13 @@ export function useClipboardItems(initialQuery: ClipboardQuery = {}) {
 
   // Subscribe to live new item additions from Electron clipboard monitor
   useEffect(() => {
-    const unsubscribe = api.onItemAdded((newItem) => {
-      setItems((prev) => {
-        // If sorting newest first and item matches current filter, prepend it
-        const exists = prev.some((i) => i.id === newItem.id);
-        if (exists) {
-          return prev.map((i) => (i.id === newItem.id ? newItem : i));
-        }
-
-        // If filtering by type and doesn't match, or pinned only and not pinned, ignore
-        if (query.contentType && query.contentType !== "all" && newItem.contentType !== query.contentType) {
-          return prev;
-        }
-        if (query.pinnedOnly && !newItem.isPinned) {
-          return prev;
-        }
-        if (query.projectId && newItem.projectId !== query.projectId) {
-          return prev;
-        }
-
-        return [newItem, ...prev];
-      });
+    const unsubscribe = api.onItemAdded(() => {
+      // Re-query all core formats using the active search, project, pinned filter and sort.
+      void fetchItems(query);
     });
 
-    return () => {
-      unsubscribe();
-    };
-  }, [api, query]);
+    return unsubscribe;
+  }, [api, query, fetchItems]);
 
   const copyItem = async (id: string): Promise<boolean> => {
     try {
@@ -118,14 +98,14 @@ export function useClipboardItems(initialQuery: ClipboardQuery = {}) {
     }
   };
 
-  const clearHistory = async (): Promise<number> => {
+  const clearHistory = async (): Promise<number | null> => {
     try {
       const res = await api.clearHistory();
-      setItems([]);
+      setItems((prev) => prev.filter((item) => item.isPinned));
       return res.deletedCount;
     } catch (err: any) {
       setError(err.message || "Failed to clear history");
-      return 0;
+      return null;
     }
   };
 

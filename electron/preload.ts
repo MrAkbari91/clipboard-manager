@@ -46,6 +46,9 @@ const api: ClipboardBrainAPI = {
   assignProject: (itemId: string, projectId: string | null): Promise<ClipboardItem> => {
     return ipcRenderer.invoke(IPC_CHANNELS.ASSIGN_PROJECT, itemId, projectId);
   },
+  openStorageFolder: (category?: string): Promise<{ success: boolean; path: string }> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.OPEN_STORAGE_FOLDER, category);
+  },
 };
 
 contextBridge.exposeInMainWorld("clipboardBrain", api);

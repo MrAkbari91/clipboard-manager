@@ -1,4 +1,5 @@
 import { clipboard } from "electron";
+import crypto from "crypto";
 import { ClipboardContentType, ClipboardItem } from "../src/shared/clipboard-contract";
 
 export interface ClipboardMonitorOptions {
@@ -12,12 +13,13 @@ export class ClipboardMonitor {
   private maxContentLength: number;
   private timer: NodeJS.Timeout | null = null;
   private lastContent: string | null = null;
+  private lastImageHash: string | null = null;
   private paused: boolean = false;
   private onNewItem?: (itemData: Omit<ClipboardItem, "id" | "createdAt" | "updatedAt">) => Promise<ClipboardItem | null>;
 
   constructor(options: ClipboardMonitorOptions = {}) {
     this.pollIntervalMs = options.pollIntervalMs ?? 800;
-    this.maxContentLength = options.maxContentLength ?? 1_000_000; // 1MB limit for safety
+    this.maxContentLength = options.maxContentLength ?? 5_000_000; // 5MB limit
     this.onNewItem = options.onNewItem;
   }
 
@@ -27,11 +29,18 @@ export class ClipboardMonitor {
     }
 
     try {
-      // Initialize with current clipboard content so we only capture future changes
-      const current = clipboard.readText().trim();
-      this.lastContent = current.length > 0 ? current : null;
+      // Initialize state with current clipboard content
+      const image = clipboard.readImage();
+      if (!image.isEmpty()) {
+        const png = image.toPNG();
+        this.lastImageHash = crypto.createHash("md5").update(png).digest("hex");
+      } else {
+        const current = clipboard.readText().trim();
+        this.lastContent = current.length > 0 ? current : null;
+      }
     } catch {
       this.lastContent = null;
+      this.lastImageHash = null;
     }
 
     this.timer = setInterval(() => {
@@ -61,6 +70,37 @@ export class ClipboardMonitor {
     }
 
     try {
+      // 1. Check for Image in clipboard first
+      const image = clipboard.readImage();
+      if (!image.isEmpty()) {
+        const size = image.getSize();
+        if (size.width > 0 && size.height > 0) {
+          const pngBuffer = image.toPNG();
+          const hash = crypto.createHash("md5").update(pngBuffer).digest("hex");
+
+          if (hash !== this.lastImageHash) {
+            this.lastImageHash = hash;
+            this.lastContent = null; // Clear last text so subsequent text copy triggers
+
+            const dataUrl = image.toDataURL();
+            const title = `Image ${size.width}x${size.height}`;
+
+            if (this.onNewItem) {
+              await this.onNewItem({
+                content: dataUrl,
+                contentType: "image",
+                isPinned: false,
+                title,
+                projectId: null,
+              });
+            }
+            return;
+          }
+          return;
+        }
+      }
+
+      // 2. Check for Text in clipboard
       const rawText = clipboard.readText();
       if (!rawText) {
         return;
@@ -82,6 +122,7 @@ export class ClipboardMonitor {
       }
 
       this.lastContent = text;
+      this.lastImageHash = null; // Clear image hash so subsequent screenshot triggers
 
       const contentType = ClipboardMonitor.detectContentType(text);
       const title = ClipboardMonitor.deriveTitle(text, contentType);
@@ -96,7 +137,6 @@ export class ClipboardMonitor {
         });
       }
     } catch (err) {
-      // In production, avoid logging raw clipboard text
       if (process.env.NODE_ENV !== "production") {
         console.error("ClipboardMonitor error:", err);
       }
@@ -106,14 +146,42 @@ export class ClipboardMonitor {
   public static detectContentType(text: string): ClipboardContentType {
     const trimmed = text.trim();
 
-    // 1. Color check (hex colors, rgb, rgba, hsl, hsla)
-    const hexColorRegex = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
-    const cssColorRegex = /^(?:rgb|rgba|hsl|hsla)\(\s*[\d.%\s,/-]+\s*\)$/i;
+    // 1. Color check (Hex 3/4/6/8 digits, rgb, rgba, hsl, hsla, hsv, oklch, oklab, lab, lch)
+    const hexColorRegex = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+    const cssColorRegex = /^(?:rgb|rgba|hsl|hsla|hsv|hsb|oklch|oklab|lab|lch|color)\s*\([^)]+\)$/i;
     if (hexColorRegex.test(trimmed) || cssColorRegex.test(trimmed)) {
       return "color";
     }
 
-    // 2. URL check
+    // 2. Emoji check (pure emojis / pictographs)
+    const emojiRegex = /^(?:\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji_Modifier}|\p{Emoji_Modifier_Base}|\u200D|\uFE0F|\s)+$/u;
+    if (emojiRegex.test(trimmed) && /\p{Extended_Pictographic}/u.test(trimmed) && trimmed.length <= 60) {
+      return "emoji";
+    }
+
+    // 3. JSON check
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      try {
+        JSON.parse(trimmed);
+        return "json";
+      } catch {
+        // Not valid JSON, continue checks
+      }
+    }
+
+    // 4. Video check (YouTube, Vimeo, Twitch, or video file extensions)
+    const videoUrlPatterns = [
+      /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)/i,
+      /vimeo\.com\/\d+/i,
+      /\.(?:mp4|mkv|mov|webm|avi|flv|m4v|wmv)(?:\?.*)?$/i,
+    ];
+    for (const pattern of videoUrlPatterns) {
+      if (pattern.test(trimmed)) {
+        return "video";
+      }
+    }
+
+    // 5. General URL check
     try {
       if (/^https?:\/\/[^\s]+$/i.test(trimmed)) {
         new URL(trimmed);
@@ -123,7 +191,7 @@ export class ClipboardMonitor {
       // not a valid URL
     }
 
-    // 3. Likely code check
+    // 6. Likely code check
     if (this.isLikelyCode(trimmed)) {
       return "code";
     }
@@ -132,17 +200,6 @@ export class ClipboardMonitor {
   }
 
   public static isLikelyCode(text: string): boolean {
-    // Check for JSON
-    if ((text.startsWith("{") && text.endsWith("}")) || (text.startsWith("[") && text.endsWith("]"))) {
-      try {
-        JSON.parse(text);
-        return true;
-      } catch {
-        // continue checks
-      }
-    }
-
-    // Common programming patterns
     const codeKeywords = [
       /\bfunction\s*\w*\s*\(/,
       /\bconst\s+\w+\s*=/,
@@ -172,7 +229,6 @@ export class ClipboardMonitor {
       return true;
     }
 
-    // Multi-line indentation patterns with syntax characters
     const lines = text.split("\n");
     if (lines.length >= 3) {
       let indentedLines = 0;
@@ -194,6 +250,41 @@ export class ClipboardMonitor {
   }
 
   public static deriveTitle(text: string, contentType: ClipboardContentType): string | null {
+    if (contentType === "image") {
+      return "Image";
+    }
+
+    if (contentType === "color") {
+      return text.trim().toUpperCase();
+    }
+
+    if (contentType === "emoji") {
+      return text.trim();
+    }
+
+    if (contentType === "json") {
+      try {
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed)) {
+          return `JSON Array (${parsed.length} items)`;
+        }
+        return `JSON Object (${Object.keys(parsed).length} keys)`;
+      } catch {
+        return "JSON Data";
+      }
+    }
+
+    if (contentType === "video") {
+      if (text.includes("youtube.com") || text.includes("youtu.be")) {
+        return "YouTube Video";
+      }
+      if (text.includes("vimeo.com")) {
+        return "Vimeo Video";
+      }
+      const filename = text.split("/").pop()?.split("?")[0];
+      return filename ? `Video: ${filename}` : "Video Link";
+    }
+
     if (contentType === "url") {
       try {
         const parsed = new URL(text);
@@ -201,10 +292,6 @@ export class ClipboardMonitor {
       } catch {
         return "Link";
       }
-    }
-
-    if (contentType === "color") {
-      return text.toUpperCase();
     }
 
     const firstLine = text.split("\n")[0].trim();

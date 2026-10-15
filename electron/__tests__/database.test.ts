@@ -31,6 +31,18 @@ describe("DatabaseService - SQLite Persistence & Operations", () => {
     expect(fs.existsSync(testDbPath)).toBe(true);
   });
 
+  it("preserves the core category folders and saves native image and JSON content", async () => {
+    for (const category of ["image", "url", "video", "text", "json", "emoji", "color", "code"] as const) {
+      expect(fs.statSync(db.getStorageDirectory(category)).isDirectory()).toBe(true);
+    }
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j4WQAAAAASUVORK5CYII=", "base64");
+    const image = await db.addItem({ contentType: "image", content: `data:image/png;base64,${png.toString("base64")}` });
+    expect(fs.readFileSync(path.join(db.getStorageDirectory("image"), `${image.id}.png`))).toEqual(png);
+    const json = await db.addItem({ contentType: "json", content: '{"merged":true}' });
+    expect(JSON.parse(fs.readFileSync(path.join(db.getStorageDirectory("json"), `${json.id}.json`), "utf8"))).toEqual({ merged: true });
+    expect((await db.getItems({ contentType: "image" })).some((item) => item.id === image.id)).toBe(true);
+  });
+
   it("adds clipboard items and maps fields properly", async () => {
     const item = await db.addItem({
       content: "const a = 42;",

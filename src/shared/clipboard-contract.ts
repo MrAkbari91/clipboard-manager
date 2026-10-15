@@ -1,4 +1,12 @@
-export type ClipboardContentType = "text" | "code" | "url" | "color";
+export type ClipboardContentType =
+  | "text"
+  | "code"
+  | "url"
+  | "color"
+  | "image"
+  | "video"
+  | "json"
+  | "emoji";
 
 export interface ClipboardItem {
   id: string;
@@ -31,6 +39,7 @@ export interface ClipboardBrainAPI {
   getProjects(): Promise<Project[]>;
   createProject(input: { name: string; description?: string }): Promise<Project>;
   assignProject(itemId: string, projectId: string | null): Promise<ClipboardItem>;
+  openStorageFolder(category?: string): Promise<{ success: boolean; path: string }>;
 }
 
 export interface Project {
