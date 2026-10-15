@@ -1,6 +1,6 @@
 {
   "name": "clipboard-brain",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Smart desktop clipboard brain and history manager",
   "main": "dist-electron/electron/main.js",
   "private": true,
