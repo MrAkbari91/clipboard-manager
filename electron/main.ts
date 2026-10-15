@@ -19,14 +19,42 @@ let tray: Tray | null = null;
 let isQuitting = false;
 let cleanupTimer: NodeJS.Timeout | null = null;
 
-// 16x16 crisp clipboard tray icon PNG (base64)
+// 32x32 crisp clipboard tray icon PNG (tested & validated base64 fallback)
 const TRAY_ICON_BASE64 =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAWElEQVR42mNgwA2EGBgY/qMZjM1AdDMuTdgMQTeDG4tqBnQbsGkGmcCGxXJ0G8AMYyDFBmzm4NEMchG65egGoJuB1V1INoP0oJsN0kG8bgA3e0i1AKsboIZP0LgZzUeYm7GZg88AACu5JBH/GSmBAAAAAElFTkSuQmCC";
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAh0lEQVR4nGNgGIrg6zzu/9jwgFpON0fgsmhkOOBmORvOoIaJg9RQbJGcpnWFavLr/8gYZDApGF0/yEyiLEfXSC0HwPDQcgC1wKgDhocDrJu+kYSHXwiMOiClpJskPPxCYNQBpMb78AuBAXfAlMU7sOKREwIj0wG0wIPfAQw4+gWUYqL7BfQGALlcx2jf2b4OAAAAAElFTkSuQmCC";
+
+function getAppIcon(): Electron.NativeImage {
+  const possiblePaths = [
+    path.join(app.getAppPath(), "assets", "tray-icon.ico"),
+    path.join(__dirname, "assets", "tray-icon.ico"),
+    path.join(__dirname, "..", "assets", "tray-icon.ico"),
+    path.join(__dirname, "..", "..", "assets", "tray-icon.ico"),
+    path.join(app.getAppPath(), "assets", "tray-icon.png"),
+    path.join(__dirname, "assets", "tray-icon.png"),
+    path.join(__dirname, "..", "assets", "tray-icon.png"),
+    path.join(__dirname, "..", "..", "assets", "tray-icon.png"),
+  ];
+
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      try {
+        const img = nativeImage.createFromPath(p);
+        if (!img.isEmpty()) {
+          return img;
+        }
+      } catch {
+        // Fallback to data URL
+      }
+    }
+  }
+
+  return nativeImage.createFromDataURL(TRAY_ICON_BASE64);
+}
 
 function createTray() {
   if (tray) return;
 
-  const icon = nativeImage.createFromDataURL(TRAY_ICON_BASE64);
+  const icon = getAppIcon();
   tray = new Tray(icon);
   tray.setToolTip("Clipboard Brain (Running in background)");
 
@@ -38,6 +66,26 @@ function createTray() {
       createWindow();
     } else if (mainWindow.isVisible()) {
       mainWindow.hide();
+    } else {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  // Double click restores and focuses the window
+  tray.on("double-click", () => {
+    if (!mainWindow) {
+      createWindow();
+    } else {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  // Balloon click restores window
+  tray.on("balloon-click", () => {
+    if (!mainWindow) {
+      createWindow();
     } else {
       mainWindow.show();
       mainWindow.focus();
@@ -85,12 +133,15 @@ function updateTrayMenu() {
 }
 
 async function createWindow() {
+  const appIcon = getAppIcon();
+
   mainWindow = new BrowserWindow({
     width: 950,
     height: 700,
     minWidth: 600,
     minHeight: 500,
     title: "Clipboard Brain",
+    icon: appIcon,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -116,6 +167,19 @@ async function createWindow() {
     if (!isQuitting) {
       event.preventDefault();
       mainWindow?.hide();
+
+      // Notify the user on Windows system tray
+      if (tray && process.platform === "win32") {
+        try {
+          tray.displayBalloon({
+            iconType: "info",
+            title: "Clipboard Brain",
+            content: "Software is still running in the tray. Double-click or click the tray icon to reopen.",
+          });
+        } catch {
+          // Ignore if balloon fails
+        }
+      }
       return false;
     }
   });
