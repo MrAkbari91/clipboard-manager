@@ -14,6 +14,7 @@ export class DatabaseService {
   private dbPath: string;
   private storageDir: string;
   private maxHistoryLimit: number = 2000;
+  private maxRetentionDays: number = 7;
 
   constructor(customDbPath?: string) {
     this.dbPath = customDbPath ?? DatabaseService.resolveDatabasePath();
@@ -112,6 +113,8 @@ export class DatabaseService {
 
     await this.prisma.$connect();
     await this.runMigrations();
+    // Run 1-week auto-cleanup on startup
+    await this.cleanupExpiredItems().catch(() => {});
   }
 
   private async runMigrations(): Promise<void> {
@@ -248,6 +251,68 @@ export class DatabaseService {
     }
   }
 
+  public removeItemFromFolder(id: string, contentType?: ClipboardContentType): void {
+    try {
+      const categories = contentType
+        ? [DatabaseService.getCategoryFolderName(contentType)]
+        : ["images", "urls", "videos", "text", "json", "emoji", "colors", "code"];
+
+      for (const cat of categories) {
+        const targetDir = path.join(this.storageDir, cat);
+        if (!fs.existsSync(targetDir)) continue;
+
+        const possibleExtensions = [".png", ".jpg", ".jpeg", ".txt", ".json", ""];
+        for (const ext of possibleExtensions) {
+          const filePath = path.join(targetDir, `${id}${ext}`);
+          if (fs.existsSync(filePath)) {
+            try {
+              fs.unlinkSync(filePath);
+            } catch {}
+          }
+        }
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Failed to remove item from folder:", err);
+      }
+    }
+  }
+
+  public async cleanupExpiredItems(days: number = this.maxRetentionDays): Promise<{ deletedCount: number }> {
+    if (!this.prisma) await this.initialize();
+
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const expiredItems = await this.prisma!.clipboardItem.findMany({
+      where: {
+        isPinned: false,
+        createdAt: {
+          lt: cutoffDate,
+        },
+      },
+      select: {
+        id: true,
+        contentType: true,
+      },
+    });
+
+    if (expiredItems.length === 0) {
+      return { deletedCount: 0 };
+    }
+
+    for (const item of expiredItems) {
+      this.removeItemFromFolder(item.id, item.contentType as ClipboardContentType);
+    }
+
+    const result = await this.prisma!.clipboardItem.deleteMany({
+      where: {
+        id: { in: expiredItems.map((i) => i.id) },
+      },
+    });
+
+    return { deletedCount: result.count };
+  }
+
   public async addItem(data: {
     content: string;
     contentType: ClipboardContentType;
@@ -291,8 +356,9 @@ export class DatabaseService {
     const mapped = this.mapItem(created);
     this.saveItemToFolder(mapped);
 
-    // Prune excess unpinned history if exceeding limit
+    // Prune excess unpinned history if exceeding limit & purge expired items
     this.pruneHistory().catch(() => {});
+    this.cleanupExpiredItems().catch(() => {});
 
     return mapped;
   }
@@ -308,9 +374,12 @@ export class DatabaseService {
         where: { isPinned: false },
         orderBy: { createdAt: "asc" },
         take: excess,
-        select: { id: true },
+        select: { id: true, contentType: true },
       });
       if (oldest.length > 0) {
+        for (const item of oldest) {
+          this.removeItemFromFolder(item.id, item.contentType as ClipboardContentType);
+        }
         await this.prisma.clipboardItem.deleteMany({
           where: { id: { in: oldest.map((i) => i.id) } },
         });
@@ -375,6 +444,13 @@ export class DatabaseService {
 
   public async deleteItem(id: string): Promise<{ success: boolean }> {
     if (!this.prisma) await this.initialize();
+    const item = await this.prisma!.clipboardItem.findUnique({
+      where: { id },
+      select: { contentType: true },
+    });
+    if (item) {
+      this.removeItemFromFolder(id, item.contentType as ClipboardContentType);
+    }
     await this.prisma!.clipboardItem.delete({
       where: { id },
     });
@@ -383,6 +459,13 @@ export class DatabaseService {
 
   public async clearHistory(): Promise<{ deletedCount: number }> {
     if (!this.prisma) await this.initialize();
+    const unpinnedItems = await this.prisma!.clipboardItem.findMany({
+      where: { isPinned: false },
+      select: { id: true, contentType: true },
+    });
+    for (const item of unpinnedItems) {
+      this.removeItemFromFolder(item.id, item.contentType as ClipboardContentType);
+    }
     // Preserve pinned items so users do not lose their saved favorites
     const result = await this.prisma!.clipboardItem.deleteMany({
       where: { isPinned: false },
