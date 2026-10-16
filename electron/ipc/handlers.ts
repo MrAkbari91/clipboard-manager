@@ -2,7 +2,7 @@ import { ipcMain, clipboard, BrowserWindow, shell, nativeImage } from "electron"
 import { IPC_CHANNELS } from "./channels";
 import { DatabaseService } from "../db/database";
 import { ClipboardMonitor } from "../clipboard-monitor";
-import { ClipboardQuery } from "../../src/shared/clipboard-contract";
+import { ClipboardQuery, ClipboardContentType } from "../../src/shared/clipboard-contract";
 
 export interface RegisterIpcOptions {
   db: DatabaseService;
@@ -181,6 +181,34 @@ export function registerIpcHandlers({ db, monitor, getMainWindow: _getMainWindow
       throw new Error(`Failed to clean expired items: ${err.message}`);
     }
   });
+
+  // 13. Get Capture Permissions (Allowed content types)
+  ipcMain.handle(IPC_CHANNELS.GET_CAPTURE_PERMISSIONS, async () => {
+    try {
+      return { allowedTypes: monitor.getAllowedTypes() };
+    } catch (err: any) {
+      console.error("IPC GET_CAPTURE_PERMISSIONS error:", err.message);
+      throw new Error(`Failed to get capture permissions: ${err.message}`);
+    }
+  });
+
+  // 14. Set Capture Permissions (Allowed content types)
+  ipcMain.handle(
+    IPC_CHANNELS.SET_CAPTURE_PERMISSIONS,
+    async (_event, allowedTypes: ClipboardContentType[]) => {
+      try {
+        if (!Array.isArray(allowedTypes)) {
+          throw new Error("allowedTypes must be an array of content types");
+        }
+        monitor.setAllowedTypes(allowedTypes);
+        db.saveSettings({ allowedContentTypes: allowedTypes });
+        return { allowedTypes: monitor.getAllowedTypes() };
+      } catch (err: any) {
+        console.error("IPC SET_CAPTURE_PERMISSIONS error:", err.message);
+        throw new Error(`Failed to set capture permissions: ${err.message}`);
+      }
+    }
+  );
 }
 
 export function unregisterIpcHandlers(): void {

@@ -34,6 +34,7 @@ async function runVerification() {
     console.error("Verification failed with error:", err);
     app.exit(1);
   }
+
 }
 
 function expectType(actual, expected, message) {

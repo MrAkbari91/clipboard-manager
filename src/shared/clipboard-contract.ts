@@ -41,6 +41,8 @@ export interface ClipboardBrainAPI {
   assignProject(itemId: string, projectId: string | null): Promise<ClipboardItem>;
   openStorageFolder(category?: string): Promise<{ success: boolean; path: string }>;
   cleanExpiredItems(days?: number): Promise<{ deletedCount: number }>;
+  getCapturePermissions(): Promise<{ allowedTypes: ClipboardContentType[] }>;
+  setCapturePermissions(allowedTypes: ClipboardContentType[]): Promise<{ allowedTypes: ClipboardContentType[] }>;
 }
 
 export interface Project {

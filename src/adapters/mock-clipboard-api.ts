@@ -178,5 +178,26 @@ export function createMockClipboardAPI(): ClipboardBrainAPI {
       items[idx] = { ...items[idx], projectId, updatedAt: new Date().toISOString() };
       return items[idx];
     },
+
+    async cleanExpiredItems(): Promise<{ deletedCount: number }> {
+      return { deletedCount: 0 };
+    },
+
+    async getCapturePermissions(): Promise<{ allowedTypes: any[] }> {
+      try {
+        const saved = localStorage.getItem("clipboard_brain_allowed_types");
+        if (saved) return { allowedTypes: JSON.parse(saved) };
+      } catch {}
+      return {
+        allowedTypes: ["text", "code", "url", "color", "image", "video", "json", "emoji"],
+      };
+    },
+
+    async setCapturePermissions(types: any[]): Promise<{ allowedTypes: any[] }> {
+      try {
+        localStorage.setItem("clipboard_brain_allowed_types", JSON.stringify(types));
+      } catch {}
+      return { allowedTypes: [...types] };
+    },
   };
 }

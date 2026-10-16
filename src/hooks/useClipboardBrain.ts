@@ -19,6 +19,9 @@ export function useClipboardBrain(): {
     // Fallback for development/testing in standard browser
     if (!mockInstance) {
       mockInstance = createMockClipboardAPI();
+      if (typeof window !== "undefined") {
+        (window as any).clipboardBrain = mockInstance;
+      }
     }
 
     return {

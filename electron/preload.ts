@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from "electron";
-import { ClipboardBrainAPI, ClipboardItem, ClipboardQuery, Project } from "../src/shared/clipboard-contract";
+import { ClipboardBrainAPI, ClipboardItem, ClipboardQuery, Project, ClipboardContentType } from "../src/shared/clipboard-contract";
 import { IPC_CHANNELS } from "./ipc/channels";
 
 const api: ClipboardBrainAPI = {
@@ -51,6 +51,12 @@ const api: ClipboardBrainAPI = {
   },
   cleanExpiredItems: (days?: number): Promise<{ deletedCount: number }> => {
     return ipcRenderer.invoke(IPC_CHANNELS.CLEAN_EXPIRED, days);
+  },
+  getCapturePermissions: (): Promise<{ allowedTypes: ClipboardContentType[] }> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.GET_CAPTURE_PERMISSIONS);
+  },
+  setCapturePermissions: (allowedTypes: ClipboardContentType[]): Promise<{ allowedTypes: ClipboardContentType[] }> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.SET_CAPTURE_PERMISSIONS, allowedTypes);
   },
 };
 

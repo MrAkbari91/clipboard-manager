@@ -500,4 +500,52 @@ export class DatabaseService {
     });
     return this.mapItem(updated);
   }
+
+  public getSettings(): { allowedContentTypes: ClipboardContentType[] } {
+    const settingsPath = path.join(path.dirname(this.dbPath), "settings.json");
+    try {
+      if (fs.existsSync(settingsPath)) {
+        const raw = fs.readFileSync(settingsPath, "utf-8");
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.allowedContentTypes)) {
+          return {
+            allowedContentTypes: parsed.allowedContentTypes,
+          };
+        }
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Failed to read settings.json:", err);
+      }
+    }
+    return {
+      allowedContentTypes: [
+        "text",
+        "code",
+        "url",
+        "color",
+        "image",
+        "video",
+        "json",
+        "emoji",
+      ],
+    };
+  }
+
+  public saveSettings(updates: { allowedContentTypes?: ClipboardContentType[] }): { allowedContentTypes: ClipboardContentType[] } {
+    const current = this.getSettings();
+    const updated = {
+      ...current,
+      ...updates,
+    };
+    const settingsPath = path.join(path.dirname(this.dbPath), "settings.json");
+    try {
+      fs.writeFileSync(settingsPath, JSON.stringify(updated, null, 2), "utf-8");
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Failed to write settings.json:", err);
+      }
+    }
+    return updated;
+  }
 }

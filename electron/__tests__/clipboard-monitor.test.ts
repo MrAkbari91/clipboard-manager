@@ -119,3 +119,35 @@ describe("ClipboardMonitor - Pause and Resume", () => {
     expect(monitor.isPaused()).toBe(false);
   });
 });
+
+describe("ClipboardMonitor - Content Type Permissions", () => {
+  it("defaults to allowing all content types", () => {
+    const monitor = new ClipboardMonitor();
+    expect(monitor.isTypeAllowed("text")).toBe(true);
+    expect(monitor.isTypeAllowed("code")).toBe(true);
+    expect(monitor.isTypeAllowed("url")).toBe(true);
+    expect(monitor.isTypeAllowed("color")).toBe(true);
+    expect(monitor.isTypeAllowed("image")).toBe(true);
+    expect(monitor.isTypeAllowed("video")).toBe(true);
+    expect(monitor.isTypeAllowed("json")).toBe(true);
+    expect(monitor.isTypeAllowed("emoji")).toBe(true);
+    expect(monitor.getAllowedTypes().length).toBe(8);
+  });
+
+  it("updates allowed content types dynamically", () => {
+    const monitor = new ClipboardMonitor({
+      allowedContentTypes: ["text", "code"],
+    });
+
+    expect(monitor.isTypeAllowed("text")).toBe(true);
+    expect(monitor.isTypeAllowed("code")).toBe(true);
+    expect(monitor.isTypeAllowed("image")).toBe(false);
+    expect(monitor.isTypeAllowed("url")).toBe(false);
+
+    monitor.setAllowedTypes(["image", "url", "video"]);
+    expect(monitor.isTypeAllowed("text")).toBe(false);
+    expect(monitor.isTypeAllowed("image")).toBe(true);
+    expect(monitor.isTypeAllowed("url")).toBe(true);
+    expect(monitor.isTypeAllowed("video")).toBe(true);
+  });
+});

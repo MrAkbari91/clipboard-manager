@@ -195,9 +195,13 @@ async function bootstrap() {
     db = new DatabaseService();
     await db.initialize();
 
-    // 2. Initialize clipboard monitor
+    // Load persisted settings (allowed content types)
+    const settings = db.getSettings();
+
+    // 2. Initialize clipboard monitor with saved permissions
     monitor = new ClipboardMonitor({
       pollIntervalMs: 700,
+      allowedContentTypes: settings.allowedContentTypes,
       onNewItem: async (itemData) => {
         if (!db) return null;
         try {

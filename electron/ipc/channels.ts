@@ -12,4 +12,6 @@ export const IPC_CHANNELS = {
   ASSIGN_PROJECT: "clipboard:assign-project",
   OPEN_STORAGE_FOLDER: "clipboard:open-storage-folder",
   CLEAN_EXPIRED: "clipboard:clean-expired",
+  GET_CAPTURE_PERMISSIONS: "clipboard:get-capture-permissions",
+  SET_CAPTURE_PERMISSIONS: "clipboard:set-capture-permissions",
 } as const;

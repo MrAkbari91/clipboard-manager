@@ -2,9 +2,21 @@ import { clipboard } from "electron";
 import crypto from "crypto";
 import { ClipboardContentType, ClipboardItem } from "../src/shared/clipboard-contract";
 
+export const DEFAULT_ALLOWED_TYPES: ClipboardContentType[] = [
+  "text",
+  "code",
+  "url",
+  "color",
+  "image",
+  "video",
+  "json",
+  "emoji",
+];
+
 export interface ClipboardMonitorOptions {
   pollIntervalMs?: number;
   maxContentLength?: number;
+  allowedContentTypes?: ClipboardContentType[];
   onNewItem?: (itemData: Omit<ClipboardItem, "id" | "createdAt" | "updatedAt">) => Promise<ClipboardItem | null>;
 }
 
@@ -15,12 +27,26 @@ export class ClipboardMonitor {
   private lastContent: string | null = null;
   private lastImageHash: string | null = null;
   private paused: boolean = false;
+  private allowedContentTypes: Set<ClipboardContentType>;
   private onNewItem?: (itemData: Omit<ClipboardItem, "id" | "createdAt" | "updatedAt">) => Promise<ClipboardItem | null>;
 
   constructor(options: ClipboardMonitorOptions = {}) {
     this.pollIntervalMs = options.pollIntervalMs ?? 800;
     this.maxContentLength = options.maxContentLength ?? 5_000_000; // 5MB limit
+    this.allowedContentTypes = new Set(options.allowedContentTypes ?? DEFAULT_ALLOWED_TYPES);
     this.onNewItem = options.onNewItem;
+  }
+
+  public getAllowedTypes(): ClipboardContentType[] {
+    return Array.from(this.allowedContentTypes);
+  }
+
+  public setAllowedTypes(types: ClipboardContentType[]): void {
+    this.allowedContentTypes = new Set(types);
+  }
+
+  public isTypeAllowed(type: ClipboardContentType): boolean {
+    return this.allowedContentTypes.has(type);
   }
 
   public start(): void {
@@ -82,6 +108,11 @@ export class ClipboardMonitor {
             this.lastImageHash = hash;
             this.lastContent = null; // Clear last text so subsequent text copy triggers
 
+            // Check if user has granted permission to capture images
+            if (!this.isTypeAllowed("image")) {
+              return;
+            }
+
             const dataUrl = image.toDataURL();
             const title = `Image ${size.width}x${size.height}`;
 
@@ -125,6 +156,12 @@ export class ClipboardMonitor {
       this.lastImageHash = null; // Clear image hash so subsequent screenshot triggers
 
       const contentType = ClipboardMonitor.detectContentType(text);
+
+      // Check if user has granted permission to capture this content type
+      if (!this.isTypeAllowed(contentType)) {
+        return;
+      }
+
       const title = ClipboardMonitor.deriveTitle(text, contentType);
 
       if (this.onNewItem) {
